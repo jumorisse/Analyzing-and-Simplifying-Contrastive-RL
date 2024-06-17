@@ -173,6 +173,8 @@ class DistributedLayout:
     return self._builder.make_replay_tables(environment_spec)
 
   def counter(self):
+    """The counter.
+    Used to keep track of the number of environment steps."""
     kwargs = {}
     if self._checkpointing_config:
       kwargs = vars(self._checkpointing_config)
@@ -222,6 +224,7 @@ class DistributedLayout:
 
     iterator = self._builder.make_dataset_iterator(replay)
 
+    # gets the environment specifications (e.g. state and action spaces)
     dummy_seed = 1
     environment_spec = (
         self._environment_spec or
@@ -244,8 +247,10 @@ class DistributedLayout:
 
     counter = counting.Counter(counter, 'learner')
 
+    # returns instance of learning.ContrastiveLearner (_builder.make_learner only specifies the optimizers call learning.ContrastiveLearner.__init__())
     learner = self._builder.make_learner(random_key, networks, iterator, replay,
                                          counter)
+    
     kwargs = {}
     if self._checkpointing_config:
       kwargs = vars(self._checkpointing_config)
@@ -284,6 +289,7 @@ class DistributedLayout:
                                             logger, observers=self._observers)
 
   def coordinator(self, counter, max_actor_steps):
+    """The coordinator process."""
     if self._builder._config.env_name.startswith('offline_ant'):  # pytype: disable=attribute-error, pylint: disable=protected-access
       steps_key = 'learner_steps'
     else:

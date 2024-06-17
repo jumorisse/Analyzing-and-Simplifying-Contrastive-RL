@@ -35,7 +35,51 @@ NetworkFactory = Callable[[specs.EnvironmentSpec],
 
 
 class DistributedContrastive(distributed_layout.DistributedLayout):
-  """Distributed program definition for contrastive RL."""
+    """
+    Distributed program definition for contrastive RL.
+
+    The main functionality of this class includes:
+    - Checking that the environment-specific parts of the configuration have been set
+    - Setting up the logger for the learner
+    - Setting up the contrastive builder
+    - Setting up the evaluator factories (if not provided)
+    - Setting up the actor observers for logging actor information
+    - Initializing the parent class `DistributedLayout` with the necessary parameters
+
+    Args:
+        environment_factory: A function that creates the environment for RL training.
+        network_factory: A function that creates the network for RL training.
+        config: An object containing configuration settings for contrastive RL.
+        seed: An integer representing the random seed for reproducibility.
+        num_actors: An integer representing the number of actors for distributed RL.
+        max_number_of_steps: An optional integer representing the maximum number of steps.
+        log_to_bigtable: An optional boolean indicating whether to log to Bigtable.
+        log_every: An optional float representing the time interval for logging.
+        evaluator_factories: An optional list of evaluator factories for RL evaluation.
+    """
+    # Rest of the code...
+class DistributedContrastive(distributed_layout.DistributedLayout):
+  """
+  Distributed program definition for contrastive RL.
+  The main functionality of this class includes:
+  - Checking that the environment-specific parts of the configuration have been set
+  - Setting up the logger for the learner
+  - Setting up the contrastive builder
+  - Setting up the evaluator factories (if not provided)
+  - Setting up the actor observers for logging actor information
+  - Initializing the parent class `DistributedLayout` with the necessary parameters
+
+  Args:
+        environment_factory: A function that creates the environment for RL training.
+        network_factory: A function that creates the network for RL training.
+        config: An object containing configuration settings for contrastive RL.
+        seed: An integer representing the random seed for reproducibility.
+        num_actors: An integer representing the number of actors for distributed RL.
+        max_number_of_steps: An optional integer representing the maximum number of steps.
+        log_to_bigtable: An optional boolean indicating whether to log to Bigtable.
+        log_every: An optional float representing the time interval for logging.
+        evaluator_factories: An optional list of evaluator factories for RL evaluation.
+  """
 
   def __init__(
       self,
@@ -53,13 +97,19 @@ class DistributedContrastive(distributed_layout.DistributedLayout):
     assert config.max_episode_steps > 0
     assert config.obs_dim > 0
 
+    # Set up the logger.
     logger_fn = functools.partial(loggers.make_default_logger,
                                   'learner', log_to_bigtable,
                                   time_delta=log_every, asynchronous=True,
                                   serialize_fn=utils.fetch_devicearray,
                                   steps_key='learner_steps')
+    
+    # Set up the builder.
+    # The builder...
     contrastive_builder = builder.ContrastiveBuilder(config,
                                                      logger_fn=logger_fn)
+    
+    # Set up the evaluator factories. (by default evaluator_factories==None)
     if evaluator_factories is None:
       eval_policy_factory = (
           lambda n: networks.apply_policy_and_sample(n, True))
@@ -80,11 +130,16 @@ class DistributedContrastive(distributed_layout.DistributedLayout):
       ]
       if config.local:
         evaluator_factories = []
+
+    # Set up the actor observers.
+    # The actor observers are used to log information about the actors (success and distance metrics)
     actor_observers = [
         contrastive_utils.SuccessObserver(),
         contrastive_utils.DistanceObserver(obs_dim=config.obs_dim,
                                            start_index=config.start_index,
                                            end_index=config.end_index)]
+    
+    # after setting up anything still needed, ready to initialize the parent class distributed_layout.DistributedLayout
     super().__init__(
         seed=seed,
         environment_factory=environment_factory,

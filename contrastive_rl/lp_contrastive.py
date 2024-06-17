@@ -26,11 +26,13 @@ Run using multi-threading
 """
 import functools
 from typing import Any, Dict
+import time
 
 from absl import app
 from absl import flags
 import contrastive
 from contrastive import utils as contrastive_utils
+import greedy_utils
 import launchpad as lp
 
 FLAGS = flags.FLAGS
@@ -39,6 +41,17 @@ flags.DEFINE_bool('debug', False, 'Runs training for just a few steps.')
 
 @functools.lru_cache()
 def get_env(env_name, start_index, end_index):
+  """
+  Creates and returns an environment using the given parameters.
+
+  Args:
+    env_name (str): The name of the environment.
+    start_index (int): The start index for the environment.
+    end_index (int): The end index for the environment.
+
+  Returns:
+    environment: The created environment.
+  """
   return contrastive_utils.make_environment(env_name, start_index, end_index,
                                             seed=0)
 
@@ -46,6 +59,7 @@ def get_env(env_name, start_index, end_index):
 def get_program(params):
   """Constructs the program."""
 
+  ### Setting parameters & loading config ###
   env_name = params['env_name']
   seed = params.pop('seed')
 
@@ -55,6 +69,13 @@ def get_program(params):
     params['prefetch_size'] = 16
     params['num_actors'] = 10
 
+  # if actor set in params is 'greedy', prepare everything needed for greedy action selection
+  if params['actor'] == 'greedy':
+    params['action_grid'] = greedy_utils.get_action_grid(scale_factor=1)
+    params['random_prob'] = 0.05 # exploration probability
+    # turn off jit for greedy actor, because it is not compatible with boolean operations (required for greedy selection)
+    #params['jit'] = False
+
   if env_name.startswith('offline_ant'):
     # No actors needed for the offline RL experiments. Evaluation is
     # handled separately.
@@ -62,6 +83,7 @@ def get_program(params):
 
   config = contrastive.ContrastiveConfig(**params)
 
+  ### Making Environment ###
   env_factory = lambda seed: contrastive_utils.make_environment(  # pylint: disable=g-long-lambda
       env_name, config.start_index, config.end_index, seed)
 
@@ -70,6 +92,8 @@ def get_program(params):
                                  config.end_index)
   assert (environment.action_spec().minimum == -1).all()
   assert (environment.action_spec().maximum == 1).all()
+
+  ### Making Agent ###
   config.obs_dim = obs_dim
   config.max_episode_steps = getattr(environment, '_step_limit') + 1
   if env_name == 'offline_ant_umaze_diverse':
@@ -79,7 +103,7 @@ def get_program(params):
       contrastive.make_networks, obs_dim=obs_dim, repr_dim=config.repr_dim,
       repr_norm=config.repr_norm, twin_q=config.twin_q,
       use_image_obs=config.use_image_obs,
-      hidden_layer_sizes=config.hidden_layer_sizes)
+      hidden_layer_sizes=config.hidden_layer_sizes,config=config)
 
   agent = contrastive.DistributedContrastive(
       seed=seed,
@@ -109,9 +133,10 @@ def main(_):
   #   antmaze: offline_ant_{umaze,umaze_diverse,
   #                             medium_play,medium_diverse,
   #                             large_play,large_diverse}
-  env_name = 'sawyer_window'
+  #env_name = 'sawyer_window'
+  env_name = 'point_Spiral11x11'
   params = {
-      'seed': 0,
+      'seed': 0, #original value: 0, additional seeds: 21, 42, 97, 1453
       'use_random_actor': True,
       'entropy_coefficient': None if 'image' in env_name else 0.0,
       'env_name': env_name,
@@ -120,6 +145,7 @@ def main(_):
       # gradient steps.
       'max_number_of_steps': 1_000_000,
       'use_image_obs': 'image' in env_name,
+      'actor': 'greedy', # 'parameterized', 'greedy', or 'random'
   }
   if 'ant_' in env_name:
     params['end_index'] = 2

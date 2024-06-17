@@ -90,16 +90,29 @@ class ContrastiveBuilder(builders.ActorLearnerBuilder):
       adder = None,
       variable_source = None):
     assert variable_source is not None
-    actor_core = actor_core_lib.batched_feed_forward_to_actor_core(
+
+    # construct actor based on its type, 'parameterized' is the original as used by Eysenbach et al.
+    if self._config.actor == 'parameterized' or self._config.actor == 'random':
+      actor_core = actor_core_lib.batched_feed_forward_to_actor_core(
         policy_network)
-    variable_client = variable_utils.VariableClient(variable_source, 'policy',
+      variable_client = variable_utils.VariableClient(variable_source, 'policy',
                                                     device='cpu')
-    if self._config.use_random_actor:
-      ACTOR = contrastive_utils.InitiallyRandomActor  # pylint: disable=invalid-name
+      if self._config.actor == 'random':
+        ACTOR = contrastive_utils.RandomActor
+        return ACTOR(actor_core, random_key, variable_client, adder, backend='cpu')
+      elif self._config.actor == 'parameterized' and self._config.use_random_actor:
+        ACTOR = contrastive_utils.InitiallyRandomActor  # pylint: disable=invalid-name
+      return ACTOR(actor_core, random_key, variable_client, adder, backend='cpu')
+    
+    elif self._config.actor == 'greedy':
+      actor_core = actor_core_lib.batched_feed_forward_to_actor_core(
+        policy_network)
+      variable_client = variable_utils.VariableClient(variable_source, 'policy',
+                                                    device='cpu')
+      ACTOR = contrastive_utils.GreedyActor
+      return ACTOR(self._config, actor_core, random_key, variable_client, adder, backend='cpu')
     else:
-      ACTOR = actors.GenericActor  # pylint: disable=invalid-name
-    return ACTOR(
-        actor_core, random_key, variable_client, adder, backend='cpu')
+      raise ValueError('Unknown agent type: %s' % self.config.agent)
 
   def make_replay_tables(
       self,
@@ -128,7 +141,10 @@ class ContrastiveBuilder(builders.ActorLearnerBuilder):
 
   def make_dataset_iterator(
       self, replay_client):
-    """Create a dataset iterator to use for learning/updating the agent."""
+    """
+    Create a dataset iterator to use for learning/updating the agent.
+    Dataset iterator purpose is to sample data from replay and prepare it for the learner.
+    """
     @tf.function
     def flatten_fn(sample):
       seq_len = tf.shape(sample.data.observation)[0]
@@ -193,6 +209,7 @@ class ContrastiveBuilder(builders.ActorLearnerBuilder):
 
       dataset = dataset.unbatch()
       return dataset
+    
     dataset = tf.data.Dataset.from_tensors(0).repeat()
     dataset = dataset.interleave(
         map_func=_make_dataset,
@@ -203,6 +220,7 @@ class ContrastiveBuilder(builders.ActorLearnerBuilder):
     dataset = dataset.batch(
         self._config.batch_size * self._config.num_sgd_steps_per_step,
         drop_remainder=True)
+    
     @tf.function
     def add_info_fn(data):
       info = reverb.SampleInfo(key=0,

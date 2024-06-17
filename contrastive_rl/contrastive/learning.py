@@ -29,6 +29,8 @@ import jax
 import jax.numpy as jnp
 import optax
 import reverb
+import pickle
+import os
 
 
 class TrainingState(NamedTuple):
@@ -128,7 +130,10 @@ class ContrastiveLearner(acme.Learner):
           new_g = obs_to_goal(next_s)
         obs = jnp.concatenate([s, new_g], axis=1)
         transitions = transitions._replace(observation=obs)
+      # I is the identity matrix
       I = jnp.eye(batch_size)  # pylint: disable=invalid-name
+      # Logits are the output of the Q-network,
+      # i.e. the inner products of the SA- and G-encodings for each observation and ation in the batch.
       logits = networks.q_network.apply(
           q_params, transitions.observation, transitions.action)
 
@@ -289,14 +294,25 @@ class ContrastiveLearner(acme.Learner):
         (critic_loss, critic_metrics), critic_grads = critic_grad(
             state.q_params, state.policy_params, state.target_q_params,
             transitions, key_critic)
-
-      actor_loss, actor_grads = actor_grad(state.policy_params, state.q_params,
+      
+      # compute actor loss and gradients only if actor is parameterized
+      # For the GreedyAgent, we do not have a separate policy net for which we need to comptue a loss
+      # For the RandomAgent, we need to still compute losses because otherwise the implementation will throw errors
+      if config.actor == 'parameterized' or config.actor == 'random':
+        actor_loss, actor_grads = actor_grad(state.policy_params, state.q_params,
                                            alpha, transitions, key_actor)
+      else:
+        actor_loss = 0.0
 
-      # Apply policy gradients
-      actor_update, policy_optimizer_state = policy_optimizer.update(
-          actor_grads, state.policy_optimizer_state)
-      policy_params = optax.apply_updates(state.policy_params, actor_update)
+      # Apply policy gradients (only if actor is parameterized)
+      # For the GreedyAgent, policy net is the critic net and the critic net is already updated above
+      if config.actor == 'parameterized':
+        actor_update, policy_optimizer_state = policy_optimizer.update(
+            actor_grads, state.policy_optimizer_state)
+        policy_params = optax.apply_updates(state.policy_params, actor_update)
+      else:
+        policy_params = state.policy_params
+        policy_optimizer_state = state.policy_optimizer_state
 
       # Apply critic gradients
       if config.use_gcbc:
@@ -315,6 +331,11 @@ class ContrastiveLearner(acme.Learner):
             lambda x, y: x * (1 - config.tau) + y * config.tau,
             state.target_q_params, q_params)
         metrics = critic_metrics
+
+      # if we use the greedy actor, we need to update the policy parameters to be the same as the critic parameters
+      # this is because, for the greedy actor, we use the critic network to compute the action
+      if config.actor == 'greedy':
+        policy_params = q_params
 
       metrics.update({
           'critic_loss': critic_loss,
@@ -397,6 +418,9 @@ class ContrastiveLearner(acme.Learner):
       sample = next(self._iterator)
       transitions = types.Transition(*sample.data)
       self._state, metrics = self._update_step(self._state, transitions)
+      # save updated parameters
+      print("###############Saving updated parameters###############")
+      self.save_params()
 
     # Compute elapsed time.
     timestamp = time.time()
@@ -426,3 +450,22 @@ class ContrastiveLearner(acme.Learner):
 
   def restore(self, state):
     self._state = state
+  
+  def save_params(self, path="manual_checkpoints/latest/"):
+      """
+      Function to save network parameters in a text file in the given path+name.
+
+      Args:
+        path: Path to save the parameters (assumes working directory is ~/contrastive_rl/)
+      """
+      params = self.get_variables(["policy", "critic"])
+      policy_params = params[0]
+      critic_params = params[1]
+      # convert parameters from binary to text
+      policy_params = jax.tree_map(lambda x: x.tolist(), policy_params)
+      critic_params = jax.tree_map(lambda x: x.tolist(), critic_params)
+      # write parameters to a .txt file
+      with open(path + "policy_params.txt", "w") as fp:
+          fp.write(str(policy_params))
+      with open(path + "critic_params.txt", "w") as fp:
+          fp.write(str(critic_params))

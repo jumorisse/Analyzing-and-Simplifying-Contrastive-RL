@@ -21,7 +21,9 @@ from typing import Optional, Sequence
 from acme import types
 from acme.agents.jax import actors
 from acme.jax import networks as network_lib
+from acme.jax import networks as networks_lib
 from acme.jax import utils
+from acme.jax.types import PRNGKey
 from acme.utils.observers import base as observers_base
 from acme.wrappers import base
 from acme.wrappers import canonical_spec
@@ -174,7 +176,7 @@ class ObservationFilterWrapper(base.EnvironmentWrapper):
 
 
 def make_environment(env_name, start_index, end_index,
-                     seed):
+                     seed, return_raw_gym_env = False):
   """Creates the environment.
 
   Args:
@@ -197,6 +199,8 @@ def make_environment(env_name, start_index, end_index,
       goal_indices
   ])
   env = gym_wrapper.GymWrapper(gym_env)
+  if return_raw_gym_env:
+    return gym_env, obs_dim
   env = step_limit.StepLimitWrapper(env, step_limit=max_episode_steps)
   env = ObservationFilterWrapper(env, indices)
   if env_name.startswith('ant_'):
@@ -210,12 +214,68 @@ class InitiallyRandomActor(actors.GenericActor):
 
   def select_action(self,
                     observation):
+    # if all biases of first linear layer ar 0, no training has been done yet
+    # in this case, replay tables are still being filled -> uniformly sample action
     if (self._params['mlp/~/linear_0']['b'] == 0).all():
       shape = self._params['Normal/~/linear']['b'].shape
       rng, self._state = jax.random.split(self._state)
       action = jax.random.uniform(key=rng, shape=shape,
                                   minval=-1.0, maxval=1.0)
+    # else replay table contains min nr of samples -> choose action according to policy network output
     else:
       action, self._state = self._policy(self._params, observation,
                                          self._state)
     return utils.to_numpy(action)
+  
+class RandomActor(actors.GenericActor):
+  """
+  Actor that always uniformly samples actions.
+  """
+  def select_action(self, observation):
+    # Randomly sample two actions between the lower and upper bounds
+    lower = [-1.0,-1.0]
+    upper = [1.0,1.0]
+    action = np.random.uniform(lower, upper, 2)
+    # convert to float tensor (previously seemed to be double)
+    action = np.array(action, dtype=np.float32)
+
+    return action
+  
+class GreedyActor(actors.GenericActor):
+  """
+  Actor that chooses the action with the highest critic value.
+  Greedy selection implemented in the policy function in networks.py.
+  """
+  def __init__(self, config, actor_core, random_key, variable_client, adder, backend='cpu'):
+    # initialize super class
+    super().__init__(actor_core, random_key, variable_client, adder, backend='cpu')
+    self._config = config
+
+  def select_action(self, observation):
+    # if config says to start with random actions, we fill the replay tables using random actions
+    # the critic network is not updated until the replay tables are filled, until then all biases are 0
+    if self._config.use_random_actor and (self._params['g_encoder/~/linear_0']['b'] == 0).all():
+      action = self.get_random_action(observation)
+    
+    # with the set probability (epsilon), we choose a random action
+    elif np.random.rand() < self._config.random_prob:
+        action = self.get_random_action(observation)
+    
+    # otherwise, we chose an action greedily based on its critic value
+    else:
+      action, self._state = self._policy(self._params, observation,
+                                         self._state)
+      action = utils.to_numpy(action)
+
+    #print("Action of greedy actor:", action)
+    return action
+  
+  def get_random_action(self, observation):
+    # Randomly sample two actions between the lower and upper bounds
+        lower = [-1.0,-1.0]
+        upper = [1.0,1.0]
+        action = np.random.uniform(lower, upper, 2)
+        # convert to float tensor (previously seemed to be double)
+        action = np.array(action, dtype=np.float32)
+        return action
+  

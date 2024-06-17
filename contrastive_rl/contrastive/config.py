@@ -78,6 +78,13 @@ class ContrastiveConfig:
   start_index: int = 0
   end_index: int = -1
 
+  # Experimental parameters
+  only_sa_encoder: bool = False
+  random_baseline: bool = False
+  actor: str = 'parameterized'  # 'parameterized', 'greedy', or 'random'
+  action_grid: onp.ndarray = None
+  random_prob: float = 0.0
+
 
 def target_entropy_from_env_spec(
     spec,
