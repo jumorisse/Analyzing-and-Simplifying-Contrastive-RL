@@ -1,0 +1,2 @@
+Critic params: 
+Traced<ShapedArray(float32[256])>with<DynamicJaxprTrace(level=1/1)>
