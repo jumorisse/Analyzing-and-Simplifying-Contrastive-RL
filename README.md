@@ -1,1 +1,1 @@
-# Understanding and Simplifying Contrastive Reinforcement Learning
+# Understanding and Simplifying Contrastive RL
