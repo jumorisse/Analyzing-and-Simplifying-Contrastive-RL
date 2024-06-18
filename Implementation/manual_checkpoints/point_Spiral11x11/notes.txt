@@ -1,0 +1,4 @@
+The current parameter were obtained on March 23rd after terminating training after ~1,315,100 actor steps.
+The success rate seemed to have stabilized by that time.
+
+Training for this amount of steps on point_Spiral11x11 took about 13h.
