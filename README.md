@@ -1,1 +1,3 @@
 # Understanding and Simplifying Contrastive RL
+
+Repo of my master thesis. Currently work in progress...
