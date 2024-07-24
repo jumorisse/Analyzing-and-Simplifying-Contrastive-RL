@@ -15,6 +15,15 @@ import matplotlib.pyplot as plt
 from point_env import WALLS, PointEnv, PointImage
 import pandas as pd
 
+def sigmoid(x):
+    """
+    Computes the sigmoid function for the given input x.
+
+    Args:
+        x: Input to the sigmoid function, can be scalar or numpy array.
+    """
+    return 1 / (1 + np.exp(-x))
+
 def inspect_params(params_path):
     # load parameter dict
     with open(params_path, "r") as f:
@@ -380,7 +389,7 @@ def reduce_dim(encodings, method="TSNE", target_dim=2, perplexity=20, distance_m
 
     return encodings_2d
 
-def plot_encodings(encodings, path, state_colors=None, colorbar=None, colorbar_ticks=None):
+def plot_encodings(encodings, path, state_colors=None, colorbar=None, colorbar_ticks=None, figsize=None):
     """
     Plots the encodings using the specified method.
 
@@ -391,16 +400,34 @@ def plot_encodings(encodings, path, state_colors=None, colorbar=None, colorbar_t
     Returns:
         None
     """
+    # check colorbar_ticks: if its an embedded list, extract first (step colorbar ticks) and second (gray scale/action colorbar ticks) list
+    if isinstance(colorbar_ticks[0], list):
+        two_colorbars = True
+        step_colorbar_ticks = colorbar_ticks[0]
+        action_colorbar_ticks = colorbar_ticks[1]
+    else:
+        two_colorbars = False
+        step_colorbar_ticks = colorbar_ticks
+
+    if figsize is None:
+        figsize = (8,6)
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111)
+
     if state_colors is None:
-        plt.scatter(encodings[:, 0], encodings[:, 1])
-        plt.savefig(path)
-        plt.close()
+        plt.scatter(encodings[:, 0], encodings[:, 1], c="red")
     else:
         plt.scatter(encodings[:, 0], encodings[:, 1], c=np.array(state_colors)/255)
-        if colorbar is not None and colorbar_ticks is not None:
-            plt.colorbar(colorbar, label="Steps to Center").set_ticklabels(list(map(str, list(colorbar_ticks))))
-        plt.savefig(path)
-        plt.close()
+        if colorbar_ticks is not None:
+            colorbar = plt.cm.ScalarMappable(cmap="viridis").set_array(state_colors)
+            plt.colorbar(colorbar, label="Steps to Center").set_ticklabels(list(map(str, list(step_colorbar_ticks))))
+
+            if two_colorbars:
+                colorbar = plt.cm.ScalarMappable(cmap="Greys")
+                plt.colorbar(colorbar, label="Sampled Actions' Strength", ax=[ax], location="left").set_ticklabels(list(map(str, list(action_colorbar_ticks))))
+
+    plt.savefig(path)
+    plt.close()
 
 def get_steps_to_center(env, states, env_name="point_Spiral11x11"):
     if env_name=="point_Spiral11x11":
@@ -431,7 +458,7 @@ def get_steps_to_center(env, states, env_name="point_Spiral11x11"):
             raise IndexError
     return steps
 
-def visualize_states(env, states, color_meaning="steps", save_path=None, state_colors=None, steps=None):
+def visualize_states(env, states, color_meaning="steps", save_path=None, state_colors=None, steps=None, radius=3):
     """
     Visualizes the given states in the environment.
 
@@ -461,8 +488,7 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
         state_colors = [np.array(color_palette(step - min_value))[:3]*255 for step in state_values]
     
     env_img = env._get_env_img()
-    
-    radius = 3 # size of the state squares drawn into the environment
+
     if color_meaning == "steps":
         for state, color in zip(states, state_colors):
             env_img = env._draw_state(env_img, state, color=color, scale=30, radius=radius)
@@ -484,7 +510,8 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
         for state, color in zip(states, state_colors):
             env_img = env._draw_state(env_img, state, color=color, scale=30, radius=radius)
     elif color_meaning == "ids":
-        color_meaning = False
+        for i, state in enumerate(states):
+            env_img = env._draw_state(env_img, state, color=state_colors[i], scale=30, radius=radius)
     else:
         if state_colors is None:
             for state in states:
@@ -494,6 +521,10 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
                 env_img = env._draw_state(env_img, state, color=color, scale=30, radius=radius)
 
     plt.imshow(env_img)
+
+    # turn axis ticks, only keep the lines
+    plt.xticks([])
+    plt.yticks([])
 
     if color_meaning == "steps" or color_meaning == "critic":
         # add colorbar
@@ -506,7 +537,7 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
             # we inversed the color palette, so we need to invert the colorbar ticks as well
             colorbar_ticks = range(int(max_value), int(min_value), -10)
         # round colorbar ticks to decimal places
-        colorbar_ticks = [round(tick, 2) for tick in colorbar_ticks]
+        colorbar_ticks = [int(tick) for tick in colorbar_ticks]
         if color_meaning == "steps":
             if steps is None:
                 plt.colorbar(colorbar, label="Steps to Center").set_ticklabels(list(map(str, list(colorbar_ticks))))
@@ -514,8 +545,10 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
                 plt.colorbar(colorbar, label="Steps to Goal").set_ticklabels(list(map(str, list(colorbar_ticks))))
         elif color_meaning == "critic":
             plt.colorbar(colorbar, label="Critic Value").set_ticklabels(list(map(str, list(colorbar_ticks))))
+
     if save_path is not None:
         plt.savefig(save_path)
+
     plt.close()
 
     if color_meaning == "steps" or color_meaning == "critic":
@@ -596,7 +629,10 @@ def produce_plot(log_paths, labels, x_var, y_var, saving_path, max_steps=None, f
         plt.ylabel(axis_labels.get(y_var, y_var), fontsize=12)
 
         # add legend
-        plt.legend()
+        plt.legend(loc="lower right")
+
+        # add grid
+        plt.grid(alpha=0.5)
 
         # save plot
         plt.savefig(saving_path+f"_{y_var}.png")
@@ -684,7 +720,7 @@ def combine_repr(repr1, repr2):
 def critic_dist(array1, array2):
     """
     Calculates the distance between two representations.
-    Uses the same distance computation as in the critic function.
+    Uses the same distance computation as in the critic function: sigmoid(inner product).
 
     Args:
         array1: First representation as a numpy array.
@@ -693,7 +729,7 @@ def critic_dist(array1, array2):
     Returns:
         numpy.ndarray: Matrix containing the distance between the two representations.
     """
-    return combine_repr(array1, array2)
+    return sigmoid(combine_repr(array1, array2))
 
 def get_action_colors(actions):
     """
@@ -740,6 +776,553 @@ def sample_tasks(env, n_tasks, seed=42):
         env.reset()
         tasks.append(env._get_obs())
     return tasks
+
+basic_action_grid = np.array([
+                        [[-1.,-1.], [-1.,0.], [-1.,1.]],
+                        [[0.,-1.], [0.,0.], [0.,1.]],
+                        [[1.,-1.], [1.,0.], [1.,1.]],
+                        ])
+
+def print_grid(grid):
+    """
+    Prints a numpy 3d array in a readable format.
+    """
+    print("Grid shape:", grid.shape)
+    for i in range(grid.shape[0]):
+        for j in range(grid.shape[1]):
+            print(grid[i,j], end=" ")
+        print()
+
+def scale_action_grid(action_grid, factor):
+    """
+    Scales action grid up, i.e. creates a more fine-grained grid with more cells.
+    Scaling up is done by interpolating neighboring (8-neighbors) cells.
+    Factor is the number of times interpolation is done.
+
+    Parameters:
+        action_grid: 3D numpy array of actions, shape (3,3,2)
+        factor: int, number of times to interpolate neighboring cells
+    
+    Returns:
+        3D numpy array of tuples, scaled up action grid of shape (action rows, action cols, 2)
+    """
+    for _ in range(factor):
+        current_shape = action_grid.shape
+        new_shape = (current_shape[0]+current_shape[0]-1, current_shape[1]+current_shape[1]-1, current_shape[2])
+        new_action_grid = np.zeros(new_shape, dtype=np.float32)
+        # fill new grid with values from old grid
+        for i in range(current_shape[0]):
+            for j in range(current_shape[1]):
+                new_action_grid[2*i, 2*j] = action_grid[i,j]
+        # interpolate values
+        # in even rows including (0), odd cells are interpolated by their row neighbors
+        for i in range(0, new_shape[0], 2):
+            for j in range(1, new_shape[1], 2):
+                new_action_grid[i,j] = (new_action_grid[i,j-1] + new_action_grid[i,j+1]) / 2
+        # odd rows are completely interpolated by their row neighbors
+        for i in range(1, new_shape[0], 2):
+            for j in range(new_shape[1]):
+                new_action_grid[i,j] = (new_action_grid[i-1,j] + new_action_grid[i+1,j]) / 2
+        action_grid = new_action_grid    
+    print("Scaled 3x3x2 grid to ", action_grid.shape)
+    print("Grid contains ", action_grid.size/2, " 2d actions.")
+    return action_grid
+
+def get_action_strengths(action_grid):
+    """
+    Calculates the strength of each action in the action grid.
+    The strength of an action is the sum of the absolute values of the action tuple.
+
+    Parameters:
+        action_grid: 3D numpy array of actions, shape (action rows, action cols, 2)
+    
+    Returns:
+        2D numpy array of floats, shape (action rows, action cols)
+    """
+    strength_grid = np.zeros((action_grid.shape[0], action_grid.shape[1]))
+    for i in range(action_grid.shape[0]):
+        for j in range(action_grid.shape[1]):
+            strength_grid[i,j] = np.sum(np.abs(action_grid[i,j]))
+    return strength_grid
+
+class ContrastiveCritic:
+    def __init__(self, env, params_path, obs_dim):
+        self.env = env
+        self.params_path = params_path
+        self.sa_encoder, self.g_encoder = self.load_encoder_nets()
+        self.obs_dim = obs_dim
+    
+    def load_encoder_nets(self):
+        sa_encoder, g_encoder = load_encoders(self.env, self.params_path+"/critic_params.txt")
+
+        # return networks in eval mode
+        return sa_encoder.eval(), g_encoder.eval()
+
+    def encode_sa(self, state, action):
+        # concatenate state and action
+        s_a = np.concatenate([state, action])
+
+        # turn np.array into torch tensor
+        s_a = torch.tensor(s_a, dtype=torch.float32)
+
+        # encode state-action pair
+        sa_encoding = self.sa_encoder(s_a).detach().numpy()
+
+        return sa_encoding
+
+    def encode_g(self, goal):
+        # turn goal array into torch tensor
+        goal = torch.tensor(goal, dtype=torch.float32)
+
+        # encode goal
+        g_encoding = self.g_encoder(goal).detach().numpy()
+
+
+        return g_encoding
+
+
+    def value_function(self, obs, action):
+        # split obs into state and goal
+        state = obs[:self.obs_dim]
+        goal = obs[self.obs_dim:]
+
+        # encode state-action pair
+        sa_encoding = self.encode_sa(state, action)
+        # encode goal
+        g_encoding = self.encode_g(goal)
+
+        # calculate value, i.d. inner product of the two encodings
+        inner_product = np.dot(sa_encoding, g_encoding)
+
+        # apply sigmoid activation
+        inner_product = sigmoid(inner_product)
+
+        return inner_product
+
+
+class GreedyAgent:
+    def __init__(self, env, action_grid, params_path, obs_dim, epsilon=0.05, value_type="contrastive_critic"):
+        self.env = env
+        self.params_path = params_path
+        self.action_grid = action_grid
+        self.value_type = value_type
+        self.obs_dim = obs_dim
+        self.epsilon = epsilon
+        self.evaluator = self.load_evaluator()
+
+    def load_evaluator(self):
+        if self.value_type == "contrastive_critic":
+            return ContrastiveCritic(self.env, self.params_path, self.obs_dim)
+
+    def value_function(self, obs):
+        """
+        Value function for greedy selection.
+        Produces an evaluation grid containing the values of each state-action pair given the current goal.
+        """
+        if self.value_type == "contrastive_critic":
+            value_grid = np.zeros(self.action_grid.shape[:2])
+            # iterating through every action-grid cell and updating its corresponding value-grid cell
+            for row in range(self.action_grid.shape[0]):
+                for column in range(self.action_grid.shape[1]):
+                    value_grid[row][column] = self.evaluator.value_function(obs, self.action_grid[row][column])
+        
+        return value_grid
+
+
+    def select_action(self, obs):
+        """
+        Selects an action from the action grid based on the critic values.
+        Has an epsilon-greedy policy, i.e. with probability epsilon a random action is selected.
+
+        Parameters:
+            obs: The current onbservation, i.e. the current state and the goal
+        
+        Returns:
+            A tuple representing the greedy action.
+        """
+        if np.random.rand() < self.epsilon:
+            # select random action
+            random_row_index = np.random.randint(self.action_grid.shape[0])
+            random_column_index = np.random.randint(self.action_grid.shape[1])
+            return self.action_grid[random_row_index, random_column_index]
+        else:
+            # produce value grid
+            value_grid = self.value_function(obs)
+            # identify indices of maximum value
+            max_indices = np.argwhere(value_grid == np.max(value_grid))
+            # select one of the maximum value indices randomly
+            selected_index = max_indices[np.random.randint(max_indices.shape[0])]
+            # return the corresponding action
+            return self.action_grid[selected_index[0], selected_index[1]]
+
+    def solve_task(self, task, max_episode_length=100):
+        """
+        Gets a task (initial state and goal) and solves it using the greedy agent.
+
+        Parameters:
+            task: 2D numpy array of shape (1, 2*obs_dim)
+        
+        Returns:
+            A tuple containing the trajectory and a boolean indicating whether the goal was reached.
+        """
+        # set task to be environment's current observation
+        self.env._set_obs(task)
+
+        # split task into intial state and goal
+        start_state = task[:self.obs_dim]
+        goal = task[self.obs_dim:]
+
+        # initialize trajectory
+        trajectory = []
+
+        # reached goal flag
+        reached_goal = []
+
+        current_state = start_state
+        # iterate through the task
+        for i in range(max_episode_length):
+            # select action
+            action = self.select_action(np.concatenate((current_state, goal)))
+            # apply action
+            next_obs, reward, done, _ = self.env.step(action)
+            next_state = next_obs[:self.obs_dim]
+            # check if goal is reached
+            if reward == 1:
+                reached_goal.append(i)
+            # update start state
+            current_state = next_state
+            # append to trajectory
+            trajectory.append((current_state, action, reward, done))
+            # check if task is done
+            if done:
+                break
+        
+        return trajectory, reached_goal
+
+
+class RandomAgent:
+    def __init__(self, action_grid, obs_dim, env):
+        self.action_grid = action_grid
+        self.obs_dim = obs_dim
+        self.env = env
+
+    def select_action(self, obs=None):
+        """
+        Selects an action randomly from the action grid.
+
+        Returns:
+            A tuple representing the random action.
+        """
+        random_row_index = np.random.randint(self.action_grid.shape[0])
+        random_column_index = np.random.randint(self.action_grid.shape[1])
+        return self.action_grid[random_row_index, random_column_index]
+    
+    def solve_task(self, task, max_episode_length=100):
+        # set task to be environment's current observation
+        self.env._set_obs(task)
+
+        # split task into intial state and goal
+        start_state = task[:self.obs_dim]
+        goal = task[self.obs_dim:]
+
+        # initialize trajectory
+        trajectory = []
+
+        # reached goal flag
+        reached_goal = []
+
+        current_state = start_state
+        # iterate through the task
+        for i in range(max_episode_length):
+            # select action
+            action = self.select_action()
+            # apply action
+            next_obs, reward, done, _ = self.env.step(action)
+            next_state = next_obs[:self.obs_dim]
+            # check if goal is reached
+            if reward == 1:
+                reached_goal.append(i)
+            # update current state
+            current_state = next_state
+            # append to trajectory
+            trajectory.append((current_state, action, reward, done))
+            # check if task is done
+            if done:
+                break
+
+        return trajectory, reached_goal
+
+
+class ContrastiveActor:
+    def __init__(self, params_path, obs_dim, eval_mode):
+        self.params_path = params_path
+        self.policy_net = self.load_net(params_path)
+        self.obs_dim = obs_dim
+        self.eval_mode = eval_mode
+    
+    def load_net(self, params_path):
+        policy_net = load_policy_net(params_path+"/policy_params.txt")
+        print("Policy Net Type:", type(policy_net))
+
+        return policy_net.eval()
+
+    def sample_action(self, policy_net_outputs, min_scale=1e-6):
+        # the policy network 
+        actions = []
+        # assumes that first output corresponds to loc and second to scale
+        for loc, scale in zip(policy_net_outputs[0], policy_net_outputs[1]):
+            # apply softplus activation to scale (makes it non-negative) and add minimum scale
+            scale = np.log(1 + np.exp(scale)) + min_scale
+            # create PyTorch normal distribution
+            dist = torch.distributions.Normal(loc, scale)
+            # tanh transformed dist
+            #tanh_dist = torch.distributions.independent.Independent(TanhTransformedDistribution(dist), reinterpreted_batch_ndims=1)
+            transform = torch.distributions.transforms.TanhTransform()
+            tanh_sample = transform(dist.sample())
+            # store action sampled for current action dimension
+            actions.append(tanh_sample.detach().numpy())
+        
+        return actions
+    
+    def get_mode_action(self, policy_net_outputs):
+        actions = []
+        # assumes that first output corresponds to loc and second to scale
+        for loc, scale in zip(policy_net_outputs[0], policy_net_outputs[1]):
+            # since the policy network outputs the mean of the normal distribution, the mode is the mean
+            actions.append(loc)
+        
+        return actions
+            
+
+    def select_action(self, obs):
+        obs = torch.tensor(obs, dtype=torch.float32)
+        network_output = self.policy_net(obs)
+        network_output = [output.detach().numpy() for output in network_output]
+        if self.eval_mode:
+            sampled_action = self.get_mode_action(network_output)
+        else:
+            sampled_action = self.sample_action(network_output)
+
+        return sampled_action
+
+class ContrastiveAgent:
+    def __init__(self, env, params_path, obs_dim, eval_mode=False):
+        self.env = env
+        self.obs_dim = obs_dim
+        self.eval_mode = eval_mode
+        self.evaluator = ContrastiveCritic(env, params_path, obs_dim)
+        self.actor = self.get_actor(params_path)
+    
+    def get_actor(self, params_path):
+        return ContrastiveActor(params_path, self.obs_dim, self.eval_mode)
+
+    def select_action(self, obs):
+        return self.actor.select_action(obs)
+
+    def solve_task(self, task, max_episode_length=100):
+        # set task to be environment's current observation
+        self.env._set_obs(task)
+
+        # split task into intial state and goal
+        start_state = task[:self.obs_dim]
+        goal = task[self.obs_dim:]
+
+        # initialize trajectory
+        trajectory = []
+
+        # reached goal flag
+        reached_goal = []
+
+        # iterate through the task
+        current_state = start_state
+        for i in range(max_episode_length):
+            # select action
+            action = self.actor.select_action(np.concatenate((current_state, goal)))
+            # apply action
+            next_obs, reward, done, _ = self.env.step(action)
+            next_state = next_obs[:self.obs_dim]
+            # check if goal is reached
+            if reward == 1:
+                reached_goal.append(i)
+            # update start state
+            current_state = next_state
+            # append to trajectory
+            trajectory.append((current_state, action, reward, done))
+            # check if task is done
+            if done:
+                break
+
+        return trajectory, reached_goal
+
+
+def evaluate_performances(trajectories, steps_in_goal, agent_names, nr_tasks = 100):
+    """
+    Evaluates the performances of the agents on the tasks.
+    Prints the success rate of each agent on each task and the average success rate of each agent.
+    Trajectories can be:
+    - list of lists of tuples; first list contains one entry per agent, second list contains one entry per task
+    - list of lists of lists of tuples, first list contains one entry per agent, second list one entry per seed, third one per task
+
+    Parameters:
+        trajectories: List of lists of tuples, containing the trajectories of the agents on the tasks.
+        steps_in_goal: List of lists of timesteps at which the agent is within the goal distance.
+        agent_names: List of strings, containing the names of the agents.
+    """
+    # TODO: remove the whole steps in goal thing, doesn't really seem to work and not used anyway
+    success_rates = []
+    first_steps_in_goal = []
+
+    # check that trajectories don't contain trajectories of multiple seeds per agent, recognize this by checking at which depth the tuples lie
+    if type(trajectories[0][0][0]) == tuple:
+        # print the performances of each agent for each task (store whether it was successful or not)
+        for i in range(len(trajectories)):
+            print("Agent:", agent_names[i])
+            agent_success_rates = []
+            agent_goal_steps = []
+            for j in range(len(trajectories[i])):
+                final_reward = trajectories[i][j][-1][2]
+                if len(steps_in_goal[i][j]) > 0 and final_reward == 1:
+                    first_step_in_goal = steps_in_goal[i][j][0]
+                else:
+                    first_step_in_goal = np.nan
+                print("Task", j+1, ":", "Reached goal:", final_reward)
+                print("First Step in Goal:", first_step_in_goal)
+                agent_success_rates.append(final_reward)
+                agent_goal_steps.append(first_step_in_goal)
+                print()
+            success_rates.append(agent_success_rates)
+            first_steps_in_goal.append(agent_goal_steps)
+
+        # print summary, i.e. average success rate overall and of each agent
+        print("Summary:")
+        for i in range(len(trajectories)):
+            print(agent_names[i], "success rate:", np.mean(success_rates[i]))
+            try:
+                print(agent_names[i], "average steps to reach goal first time:", np.nanmean(first_steps_in_goal[i]))
+            except ZeroDivisionError or IndexError:
+                print(agent_names[i], "average steps to reach goal first time: N/A, didn't solve any task")
+            
+    
+    # if trajectories contain trajectories of multiple seeds per agent, average the performances of the agents
+    elif type(trajectories[0][0][0][0]) == tuple:
+        # extract success and first step in goal for each task for each seed of each agent
+        success_rates = []
+        first_steps_in_goal = []
+        for i in range(len(trajectories)):
+            agent_success_rates = []
+            agent_first_steps_in_goal = []
+            for j in range(len(trajectories[i])):
+                seed_success_rates = []
+                seed_first_steps_in_goal = []
+                for k in range(len(trajectories[i][j])):
+                    final_reward = trajectories[i][j][k][-1][2]
+                    if len(steps_in_goal[i][j][k]) > 0 and final_reward == 1:
+                        first_step_in_goal = steps_in_goal[i][j][k][0]
+                    else:
+                        first_step_in_goal = np.nan
+                    seed_success_rates.append(final_reward)
+                    seed_first_steps_in_goal.append(first_step_in_goal)
+                agent_success_rates.append(seed_success_rates)
+                agent_first_steps_in_goal.append(seed_first_steps_in_goal)
+            success_rates.append(agent_success_rates)
+            first_steps_in_goal.append(agent_first_steps_in_goal)
+
+        # print summary, i.e. average success rate overall and of each agent
+        print("Summary:")
+        for i in range(len(trajectories)):
+            print(agent_names[i], "is evaluated across", len(success_rates[i]), "seeds.")
+            print(agent_names[i], "success rate mean across seeds:", np.mean(success_rates[i]))
+            print(agent_names[i], "success rate std across seeds:", np.std(success_rates[i]))
+            try:
+                print(agent_names[i], "average steps to reach goal first time:", np.nanmean(first_steps_in_goal[i]))
+            except ZeroDivisionError or IndexError:
+                print(agent_names[i], "average steps to reach goal first time: N/A, didn't solve any task")
+
+
+def evaluate_checkpoints(checkpoint_paths, labels, nr_tasks=2, environment_name="point_Spiral11x11"):
+    """
+    Performs the experiment 02 evaluation using the given checkpoints.
+    Evaluation consists of:
+        - loading the checkpoints' encoders (making up the critic) and actors
+        - sampling 100 tasks from the environment
+        - letting a paramerized, greedy, and random policy solve the tasks
+        - plotting and saving the results in a bar plot
+
+    Done for embedded list of checkpoints containing different seeds for different actor types (greedy vs. parameterized).
+
+    Args:
+        checkpoint_paths: List of of lists of paths to the checkpoints, each embedded path is for one seed.
+        labels: List of labels for the checkpoints.
+        nr_tasks: Number of tasks to evaluate on.
+        environment_name: Name of environment to evaluate on.
+    
+    Returns:
+        None
+    """
+    # load the environment, obs_dim, and action grid
+    env, obs_dim = get_env(environment_name, return_obs_dim=True, seed=42, return_raw_gym_env=True)
+    action_grid_25 = scale_action_grid(basic_action_grid, 1)
+    action_grid_9 = scale_action_grid(basic_action_grid, 0)
+    action_grid_81 = scale_action_grid(basic_action_grid, 2)
+
+    action_grids = {
+        "25": action_grid_25,
+        "09": action_grid_9,
+        "81": action_grid_81
+    }
+
+    # sample tasks
+    tasks = sample_tasks(env, nr_tasks)
+
+    # load the encoders and actors
+    sa_encoders = []
+    g_encoders = []
+    actors = []
+    for i,agent_type in enumerate(labels):
+        agent_type_sa_encoders = []
+        agent_type_g_encoders = []
+        agent_type_actors = []
+        for j,checkpoint_path in enumerate(checkpoint_paths[i]):
+            sa_encoder, g_encoder = load_encoders(env, checkpoint_path+"/critic_params.txt")
+            if agent_type.lower() == "contrastive" or agent_type.lower() == "parameterized":
+                actor = ContrastiveAgent(env, checkpoint_path, obs_dim)
+            elif agent_type.lower() == "greedy" or agent_type.lower().split(" ")[0] == "greedy":
+                print("Grid key:", agent_type.lower().split(" ")[1][1:3])
+                actor = GreedyAgent(env, action_grids[agent_type.lower().split(" ")[1][1:3]], checkpoint_path, obs_dim, epsilon=0.05, value_type="contrastive_critic")
+            elif agent_type.lower() == "random":
+                actor = RandomAgent(action_grid_25, obs_dim, env)
+            else:
+                raise ValueError("Invalid agent type, check labels. They must be either ")
+            agent_type_sa_encoders.append(sa_encoder)
+            agent_type_g_encoders.append(g_encoder)
+            agent_type_actors.append(actor)
+        sa_encoders.append(agent_type_sa_encoders)
+        g_encoders.append(agent_type_g_encoders)
+        actors.append(agent_type_actors)
+
+    # let the agents solve the tasks, record the trajectories and steps in goal in embedded lists
+    print("Solving tasks...")
+    trajectory_collection = []
+    steps_in_goal_collection = []
+    for i,agent_type in enumerate(labels):
+        agent_trajectories = []
+        agent_steps_in_goal = []
+        for j in range(len(actors[i])):
+            seed_trajectory_collection = []
+            seed_steps_in_goal_collection = []
+            print("Agent:", agent_type, "Seed:", j)
+            for task in tasks:
+                trajectory, steps_in_goal = actors[i][j].solve_task(task)
+                seed_trajectory_collection.append(trajectory)
+                seed_steps_in_goal_collection.append(steps_in_goal)
+            agent_trajectories.append(seed_trajectory_collection)
+            agent_steps_in_goal.append(seed_steps_in_goal_collection)
+        trajectory_collection.append(agent_trajectories)
+        steps_in_goal_collection.append(agent_steps_in_goal)
+    
+    # evaluate the performances of the agents
+    evaluate_performances(trajectory_collection, steps_in_goal_collection, labels, nr_tasks)
+
 
 
 if __name__ == "__main__":

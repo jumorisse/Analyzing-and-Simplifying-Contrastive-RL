@@ -51,6 +51,16 @@ def apply_policy_and_sample(
     def apply_and_sample(params, key, obs):
       # setting the action grid here, because function is jitted and needs to know the action grid shape at compile time
       # TODO: find better way to do this
+      
+      # 3x3 grid of actions
+      '''
+      action_grid = jnp.array([
+        [[-1., -1.], [-1., 0.], [-1., 1.]],
+        [[ 0., -1.], [ 0., 0.], [ 0., 1.]],
+        [[ 1., -1.], [ 1., 0.], [ 1., 1.]],
+        ])
+      '''
+      # 5x5 grid of actions
       action_grid = jnp.array([
         [[-1., -1.], [-1., -0.5], [-1., 0.], [-1., 0.5], [-1., 1.]],
         [[-0.5, -1.], [-0.5, -0.5], [-0.5, 0.], [-0.5, 0.5], [-0.5, 1.]],
@@ -59,8 +69,23 @@ def apply_policy_and_sample(
         [[ 1., -1.], [ 1., -0.5], [1., 0.], [1., 0.5], [1., 1.]],
         ])
       
+      # 9x9 grid of actions
+      '''
+      action_grid = jnp.array([
+        [[-1., -1.], [-1., -0.75], [-1., -0.5], [-1., -0.25], [-1., 0.], [-1., 0.25], [-1., 0.5], [-1., 0.75], [-1., 1.]],
+        [[-0.75, -1.], [-0.75, -0.75], [-0.75, -0.5], [-0.75, -0.25], [-0.75, 0.], [-0.75, 0.25], [-0.75, 0.5], [-0.75, 0.75], [-0.75, 1.]],
+        [[-0.5, -1.], [-0.5, -0.75], [-0.5, -0.5], [-0.5, -0.25], [-0.5, 0.], [-0.5, 0.25], [-0.5, 0.5], [-0.5, 0.75], [-0.5, 1.]],
+        [[-0.25, -1.], [-0.25, -0.75], [-0.25, -0.5], [-0.25, -0.25], [-0.25, 0.], [-0.25, 0.25], [-0.25, 0.5], [-0.25, 0.75], [-0.25, 1.]],
+        [[ 0., -1.], [ 0., -0.75], [ 0., -0.5], [ 0., -0.25], [ 0., 0.], [ 0., 0.25], [ 0., 0.5], [ 0., 0.75], [ 0., 1.]],
+        [[ 0.25, -1.], [ 0.25, -0.75], [ 0.25, -0.5], [ 0.25, -0.25], [ 0.25, 0.], [ 0.25, 0.25], [ 0.25, 0.5], [ 0.25, 0.75], [ 0.25, 1.]],
+        [[ 0.5, -1.], [ 0.5, -0.75], [ 0.5, -0.5], [ 0.5, -0.25], [ 0.5, 0.], [ 0.5, 0.25], [ 0.5, 0.5], [ 0.5, 0.75], [ 0.5, 1.]],
+        [[ 0.75, -1.], [ 0.75, -0.75], [ 0.75, -0.5], [ 0.75, -0.25], [ 0.75, 0.], [ 0.75, 0.25], [ 0.75, 0.5], [ 0.75, 0.75], [ 0.75, 1.]],
+        [[ 1., -1.], [ 1., -0.75], [ 1., -0.5], [ 1., -0.25], [ 1., 0.], [ 1., 0.25], [ 1., 0.5], [ 1., 0.75], [ 1., 1.]],
+        ])
+      '''
+      
       # apply the critic network to each action in the action grid to get the value of each action
-      value_grid = jnp.apply_along_axis(lambda action: jax.nn.sigmoid(networks.q_network.apply(params, obs, action.reshape(1,-1))), 2, action_grid).reshape(5, 5)
+      value_grid = jnp.apply_along_axis(lambda action: jax.nn.sigmoid(networks.q_network.apply(params, obs, action.reshape(1,-1))), 2, action_grid).reshape(action_grid.shape[0], action_grid.shape[1])
 
       return sample_fn(value_grid, key)
   

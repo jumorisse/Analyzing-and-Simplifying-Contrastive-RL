@@ -292,6 +292,7 @@ class PointEnv(gym.Env):
     # Step 3: Add color channels
     if color:
       img = np.stack([img, img, img], axis=-1)*255
+
     # Step 4: Return the resulting image
     return img
   

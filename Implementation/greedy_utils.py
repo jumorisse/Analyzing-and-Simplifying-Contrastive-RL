@@ -38,7 +38,7 @@ def scale_action_grid(action_grid, factor):
                 new_action_grid[i,j] = (new_action_grid[i-1,j] + new_action_grid[i+1,j]) / 2
         action_grid = new_action_grid    
     print("Scaled 3x3x2 grid to ", action_grid.shape)
-    print("Grid contains ", action_grid.size, " actions.")
+    print("Grid contains", action_grid.size/2, "2d actions.")
     return action_grid
 
 def get_action_grid(scale_factor):

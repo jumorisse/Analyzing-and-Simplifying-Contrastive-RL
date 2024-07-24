@@ -270,12 +270,55 @@ class GreedyActor(actors.GenericActor):
     #print("Action of greedy actor:", action)
     return action
   
-  def get_random_action(self, observation):
-    # Randomly sample two actions between the lower and upper bounds
-        lower = [-1.0,-1.0]
-        upper = [1.0,1.0]
-        action = np.random.uniform(lower, upper, 2)
-        # convert to float tensor (previously seemed to be double)
-        action = np.array(action, dtype=np.float32)
-        return action
+  def get_random_action(self, observation, use_grid=False):
+    if not use_grid:
+      # Randomly sample two actions between the lower and upper bounds
+      lower = [-1.0,-1.0]
+      upper = [1.0,1.0]
+      action = np.random.uniform(lower, upper, 2)
+      # convert to float tensor (previously seemed to be double)
+      action = np.array(action, dtype=np.float32)
+      return action
+    
+    elif use_grid:
+      '''
+      # 3x3 grid of actions
+      action_grid = jnp.array([
+        [[-1., -1.], [-1., 0.], [-1., 1.]],
+        [[ 0., -1.], [ 0., 0.], [ 0., 1.]],
+        [[ 1., -1.], [ 1., 0.], [ 1., 1.]],
+        ])
+      '''
+      
+      # 5x5 grid of actions
+      action_grid = np.array([
+        [[-1., -1.], [-1., -0.5], [-1., 0.], [-1., 0.5], [-1., 1.]],
+        [[-0.5, -1.], [-0.5, -0.5], [-0.5, 0.], [-0.5, 0.5], [-0.5, 1.]],
+        [[ 0., -1.], [ 0.,-0.5], [0., 0.], [0., 0.5], [ 0., 1.]],
+        [[ 0.5, -1.], [ 0.5, -0.5], [0.5, 0.], [0.5, 0.5], [0.5, 1.]],
+        [[ 1., -1.], [ 1., -0.5], [1., 0.], [1., 0.5], [1., 1.]],
+        ])
+      '''
+      # 9x9 grid of actions
+      
+      action_grid = jnp.array([
+        [[-1., -1.], [-1., -0.75], [-1., -0.5], [-1., -0.25], [-1., 0.], [-1., 0.25], [-1., 0.5], [-1., 0.75], [-1., 1.]],
+        [[-0.75, -1.], [-0.75, -0.75], [-0.75, -0.5], [-0.75, -0.25], [-0.75, 0.], [-0.75, 0.25], [-0.75, 0.5], [-0.75, 0.75], [-0.75, 1.]],
+        [[-0.5, -1.], [-0.5, -0.75], [-0.5, -0.5], [-0.5, -0.25], [-0.5, 0.], [-0.5, 0.25], [-0.5, 0.5], [-0.5, 0.75], [-0.5, 1.]],
+        [[-0.25, -1.], [-0.25, -0.75], [-0.25, -0.5], [-0.25, -0.25], [-0.25, 0.], [-0.25, 0.25], [-0.25, 0.5], [-0.25, 0.75], [-0.25, 1.]],
+        [[ 0., -1.], [ 0., -0.75], [ 0., -0.5], [ 0., -0.25], [ 0., 0.], [ 0., 0.25], [ 0., 0.5], [ 0., 0.75], [ 0., 1.]],
+        [[ 0.25, -1.], [ 0.25, -0.75], [ 0.25, -0.5], [ 0.25, -0.25], [ 0.25, 0.], [ 0.25, 0.25], [ 0.25, 0.5], [ 0.25, 0.75], [ 0.25, 1.]],
+        [[ 0.5, -1.], [ 0.5, -0.75], [ 0.5, -0.5], [ 0.5, -0.25], [ 0.5, 0.], [ 0.5, 0.25], [ 0.5, 0.5], [ 0.5, 0.75], [ 0.5, 1.]],
+        [[ 0.75, -1.], [ 0.75, -0.75], [ 0.75, -0.5], [ 0.75, -0.25], [ 0.75, 0.], [ 0.75, 0.25], [ 0.75, 0.5], [ 0.75, 0.75], [ 0.75, 1.]],
+        [[ 1., -1.], [ 1., -0.75], [ 1., -0.5], [ 1., -0.25], [ 1., 0.], [ 1., 0.25], [ 1., 0.5], [ 1., 0.75], [ 1., 1.]],
+        ])
+      '''
+
+      # Randomly sample one of the actions from the grid
+      idx = np.random.randint(0, action_grid.shape[0])
+      idy = np.random.randint(0, action_grid.shape[1])
+      action = action_grid[idx, idy]
+      # convert to float tensor (previously seemed to be double)
+      action = np.array(action, dtype=np.float32)
+      return action
   

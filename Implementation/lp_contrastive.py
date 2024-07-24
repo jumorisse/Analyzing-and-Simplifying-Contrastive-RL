@@ -71,10 +71,8 @@ def get_program(params):
 
   # if actor set in params is 'greedy', prepare everything needed for greedy action selection
   if params['actor'] == 'greedy':
-    params['action_grid'] = greedy_utils.get_action_grid(scale_factor=1)
+    params['action_grid'] = greedy_utils.get_action_grid(scale_factor=1) # scale factor 0 for 3x3 grid, 1 for 5x5 grid, 2 for 9x9 grid
     params['random_prob'] = 0.05 # exploration probability
-    # turn off jit for greedy actor, because it is not compatible with boolean operations (required for greedy selection)
-    #params['jit'] = False
 
   if env_name.startswith('offline_ant'):
     # No actors needed for the offline RL experiments. Evaluation is
@@ -136,16 +134,16 @@ def main(_):
   #env_name = 'sawyer_window'
   env_name = 'point_Spiral11x11'
   params = {
-      'seed': 0, #original value: 0, additional seeds: 21, 42, 97, 1453
+      'seed': 1453, #original value: 0, additional seeds: 21, 42, 97, 1453
       'use_random_actor': True,
       'entropy_coefficient': None if 'image' in env_name else 0.0,
       'env_name': env_name,
       # For online RL experiments, max_number_of_steps is the number of
       # environment steps. For offline RL experiments, this is the number of
       # gradient steps.
-      'max_number_of_steps': 1_000_000,
+      'max_number_of_steps': 500_000,
       'use_image_obs': 'image' in env_name,
-      'actor': 'greedy', # 'parameterized', 'greedy', or 'random'
+      'actor': 'parameterized', # 'parameterized', 'greedy', or 'random'
   }
   if 'ant_' in env_name:
     params['end_index'] = 2
