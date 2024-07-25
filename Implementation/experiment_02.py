@@ -158,8 +158,8 @@ if __name__ == "__main__":
     np.random.seed(numpy_seed)
     contrastive_eval_mode = False
 
-    evaluating_performances = True
-    computing_action_distances = False
+    evaluating_performances = False
+    computing_action_distances = True
     visualizing_actions = False
 
     # get the action grid, i.e. the actions the greedy agent can select from
@@ -262,32 +262,61 @@ if __name__ == "__main__":
         print("##########################")
         print("Comparing Actions")
         print("##########################")
-        #action_pairs = [(contrastive_agent, greedy_agent_00), (contrastive_agent, random_agent), (contrastive_agent, contrastive_agent)]
-        action_pairs = [(contrastive_agent, random_agent), (contrastive_agent, contrastive_agent)]
-        for (agent_1, agent_2) in action_pairs:
-            print("Comparing Actions of", agent_1, "(leading) and", agent_2, "(trailing) on", n_tasks, "tasks with", max_episode_length, "max episode steps.")
-            euclidean_distances = []
-            cosine_similarities = []
-            for i,task in enumerate(tasks):
-                #print("Comparing Actions for Task:", i+1)
-                eucl_dists, cos_sims = compare_actions(env=env, task=task, leading_agent=agent_1, trailing_agent=agent_2, obs_dim=obs_dim)
-                euclidean_distances.append(eucl_dists)
-                cosine_similarities.append(cos_sims)
-            # computing mean, max, and min euclidean distances and cosine similarities
-            # acros all actions for all tasks
-            euclidean_distances = np.array(euclidean_distances)
-            cosine_similarities = np.array(cosine_similarities)
+        euclidean_distances = []
+        cosine_similarities = []
+        for i,seed in enumerate(seeds):
+            print("Seed", seed)
+            seed_euclidean_distances = []
+            seed_cosine_similarities = []
+            action_pairs = [(contrastive_agents[i], greedy_agents_00[i]), (contrastive_agents[i], random_agents[i]), (contrastive_agents[i], contrastive_agents[i])]
+            for (agent_1, agent_2) in action_pairs:
+                pair_euclidean_distances = []
+                pair_cosine_similarities = []
+                for i,task in enumerate(tasks):
+                    #print("Comparing Actions for Task:", i+1)
+                    eucl_dists, cos_sims = compare_actions(env=env, task=task, leading_agent=agent_1, trailing_agent=agent_2, obs_dim=obs_dim)
+                    pair_euclidean_distances.append(eucl_dists)
+                    pair_cosine_similarities.append(cos_sims)
+                seed_euclidean_distances.append(pair_euclidean_distances)
+                seed_cosine_similarities.append(pair_cosine_similarities)
+            euclidean_distances.append(seed_euclidean_distances)
+            cosine_similarities.append(seed_cosine_similarities)
+                
+        # computing mean, max, and min euclidean distances and cosine similarities for each pair of agents
+        # compute across seeds and also compute the std of the mean across seeds
+        for i,agent_names in enumerate([["ContrastiveAgent", "GreedyAgent"], ["ContrastiveAgent", "RandomAgent"], ["ContrastiveAgent", "ContrastiveAgent"]]):
+            print("Comparing Actions of", agent_names[0], "(leading) and", agent_names[1], "(trailing) on", n_tasks, "tasks with", max_episode_length, "max episode steps.")
+            # compute mean, max, and min euclidean distances and cosine similarities for each seed of this agent pair
+            mean_euclidean_distances = []
+            max_euclidean_distances = []
+            min_euclidean_distances = []
+            mean_cosine_similarities = []
+            max_cosine_similarities = []
+            min_cosine_similarities = []
+
+            for j in range(len(seeds)):
+                # compute mean, max, and min euclidean distances and cosine similarities for this seed
+                mean_euclidean_distances.append(np.mean(euclidean_distances[j][i]))
+                max_euclidean_distances.append(np.max(euclidean_distances[j][i]))
+                min_euclidean_distances.append(np.min(euclidean_distances[j][i]))
+                mean_cosine_similarities.append(np.mean(cosine_similarities[j][i]))
+                max_cosine_similarities.append(np.max(cosine_similarities[j][i]))
+                min_cosine_similarities.append(np.min(cosine_similarities[j][i]))
+            
             print("###################################")
             print("### Comparison Across All Tasks ###")
             print("###################################")
-            print("Mean Euclidean Distance between Actions:", np.mean(euclidean_distances))
-            print("Max Euclidean Distance between Actions:", np.max(euclidean_distances))
-            print("Min Euclidean Distance between Actions:", np.min(euclidean_distances))
+            print("Mean Euclidean Distance between Actions:", np.mean(mean_euclidean_distances))
+            print("Std of Mean Euclidean Distance between Actions:", np.std(mean_euclidean_distances))
+            print("Max Euclidean Distance between Actions:", np.max(max_euclidean_distances))
+            print("Min Euclidean Distance between Actions:", np.min(min_euclidean_distances))
             print()
-            print("Mean Cosine Similarity between Actions:", np.mean(cosine_similarities))
-            print("Max Cosine Similarity between Actions:", np.max(cosine_similarities))
-            print("Min Cosine Similarity between Actions:", np.min(cosine_similarities))
+            print("Mean Cosine Similarity between Actions:", np.mean(mean_cosine_similarities))
+            print("Std of Mean Cosine Similarity between Actions:", np.std(mean_cosine_similarities))
+            print("Max Cosine Similarity between Actions:", np.max(max_cosine_similarities))
+            print("Min Cosine Similarity between Actions:", np.min(min_cosine_similarities))
             print()
+            
 
     if visualizing_actions:
         print("##########################")
