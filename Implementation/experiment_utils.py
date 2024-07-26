@@ -643,7 +643,7 @@ def plot_training_curves(checkpoint_paths, curve_labels, saving_path, vars, max_
     Produces and saves training curves for the variables specified in the curves list.
 
     Args:
-        checkpoint_path: Path to the checkpoint files containing the logs.
+        checkpoint_path: List of paths to the checkpoint files containing the logs, one for each seed.
         curve_labels: The labels for the different checkpoints, describing the training setting.
         saving_path: Path to save the training curves plot.
         vars: List of variables to plot.

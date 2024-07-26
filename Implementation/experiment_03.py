@@ -27,7 +27,8 @@ if __name__ == '__main__':
             [
                 "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed0",
                 "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed21",
-                "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed42"
+                "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed42",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed97"
             ],
             "manual_checkpoints/two_encoders/point_Spiral11x11/random_seed0",
             [
