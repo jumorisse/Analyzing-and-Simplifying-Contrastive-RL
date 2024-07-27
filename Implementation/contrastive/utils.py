@@ -289,7 +289,7 @@ class GreedyActor(actors.GenericActor):
         [[ 1., -1.], [ 1., 0.], [ 1., 1.]],
         ])
       '''
-      
+      '''
       # 5x5 grid of actions
       action_grid = np.array([
         [[-1., -1.], [-1., -0.5], [-1., 0.], [-1., 0.5], [-1., 1.]],
@@ -312,7 +312,7 @@ class GreedyActor(actors.GenericActor):
         [[ 0.75, -1.], [ 0.75, -0.75], [ 0.75, -0.5], [ 0.75, -0.25], [ 0.75, 0.], [ 0.75, 0.25], [ 0.75, 0.5], [ 0.75, 0.75], [ 0.75, 1.]],
         [[ 1., -1.], [ 1., -0.75], [ 1., -0.5], [ 1., -0.25], [ 1., 0.], [ 1., 0.25], [ 1., 0.5], [ 1., 0.75], [ 1., 1.]],
         ])
-      '''
+      
 
       # Randomly sample one of the actions from the grid
       idx = np.random.randint(0, action_grid.shape[0])
