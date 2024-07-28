@@ -35,14 +35,21 @@ if __name__ == '__main__':
             [
                 "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed42",
                 "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed21",
-                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed0"
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed0",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed97",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed1453"
             ],
             [
                 "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_9actions_seed97",
                 "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_9actions_seed0"
             ],
-            "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_81actions_seed0",
-            "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_gridsampling_seed0"
+            [
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_81actions_seed0",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_81actions_seed21",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_81actions_seed42",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_81actions_seed97"
+
+            ]
         ]
     
     curve_labels = [
@@ -52,8 +59,7 @@ if __name__ == '__main__':
         #"Mine",
         "95% Greedy Actor (25 actions)",
         "95% Greedy Actor (9 actions)",
-        "95% Greedy Actor (81 actions)",
-        "95% Greedy Actor (25 actions, Grid Sampling)",
+        "95% Greedy Actor (81 actions)"
     ]
 
     saving_path = "experiment_results/experiment_03/param_vs_greedy/"
