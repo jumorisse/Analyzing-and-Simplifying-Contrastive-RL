@@ -134,7 +134,7 @@ def main(_):
   #env_name = 'sawyer_window'
   env_name = 'point_Spiral11x11'
   params = {
-      'seed': 97, #original value: 0, additional seeds: 21, 42, 97, 1453
+      'seed': 1453, #original value: 0, additional seeds: 21, 42, 97, 1453
       'use_random_actor': True,
       'entropy_coefficient': None if 'image' in env_name else 0.0,
       'env_name': env_name,
