@@ -59,7 +59,7 @@ def apply_policy_and_sample(
         [[ 0., -1.], [ 0., 0.], [ 0., 1.]],
         [[ 1., -1.], [ 1., 0.], [ 1., 1.]],
         ])
-      
+      '''
       # 5x5 grid of actions
       action_grid = jnp.array([
         [[-1., -1.], [-1., -0.5], [-1., 0.], [-1., 0.5], [-1., 1.]],
@@ -68,9 +68,9 @@ def apply_policy_and_sample(
         [[ 0.5, -1.], [ 0.5, -0.5], [0.5, 0.], [0.5, 0.5], [0.5, 1.]],
         [[ 1., -1.], [ 1., -0.5], [1., 0.], [1., 0.5], [1., 1.]],
         ])
-      '''
+      
       # 9x9 grid of actions
-    
+      '''
       action_grid = jnp.array([
         [[-1., -1.], [-1., -0.75], [-1., -0.5], [-1., -0.25], [-1., 0.], [-1., 0.25], [-1., 0.5], [-1., 0.75], [-1., 1.]],
         [[-0.75, -1.], [-0.75, -0.75], [-0.75, -0.5], [-0.75, -0.25], [-0.75, 0.], [-0.75, 0.25], [-0.75, 0.5], [-0.75, 0.75], [-0.75, 1.]],
@@ -82,7 +82,7 @@ def apply_policy_and_sample(
         [[ 0.75, -1.], [ 0.75, -0.75], [ 0.75, -0.5], [ 0.75, -0.25], [ 0.75, 0.], [ 0.75, 0.25], [ 0.75, 0.5], [ 0.75, 0.75], [ 0.75, 1.]],
         [[ 1., -1.], [ 1., -0.75], [ 1., -0.5], [ 1., -0.25], [ 1., 0.], [ 1., 0.25], [ 1., 0.5], [ 1., 0.75], [ 1., 1.]],
         ])
-      
+      '''
       
       # apply the critic network to each action in the action grid to get the value of each action
       value_grid = jnp.apply_along_axis(lambda action: jax.nn.sigmoid(networks.q_network.apply(params, obs, action.reshape(1,-1))), 2, action_grid).reshape(action_grid.shape[0], action_grid.shape[1])
@@ -225,7 +225,7 @@ def make_networks(
 
   def _actor_fn(obs):
     # if using parameterized actor, we need an actor function that outputs a distribution for each action
-    if config.actor == 'parameterized':
+    if config.actor == 'parameterized' or config.actor == 'random':
       if use_image_obs:
         state, goal = _unflatten_obs(obs)
         obs = jnp.concatenate([state, goal], axis=-1)
