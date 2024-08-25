@@ -1,7 +1,7 @@
 # Implementation
 
 This directory contains the code used to run the experiments for my Master thesis.
-My implementation is based on the that by [Eysenbach et al. (2023)](https://github.com/google-research/google-research/tree/master/contrastive_rl).
+My implementation is based on that of [Eysenbach et al. (2023)](https://github.com/google-research/google-research/tree/master/contrastive_rl).
 Therefore, this codebase largely consists of their code.
 Below, I list the files I developed and the ones I modified, along with instructions on how to reproduce my results.
 
