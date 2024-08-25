@@ -26,6 +26,16 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 def inspect_params(params_path):
+    """
+    Inspects the parameters of a neural network saved in a .txt file.
+    Prints the keys of the parameter dictionary and the shapes of the values.
+
+    Args:
+        params_path: Path to the .txt file containing the parameters.
+    
+    Returns:
+        None
+    """
     # load parameter dict
     with open(params_path, "r") as f:
         # read raw string and replace single quotes with double quotes
@@ -101,6 +111,18 @@ def create_encoder(params, activation=nn.ReLU()):
     return encoder
 
 def load_encoders(env, critic_path=None):
+    """
+    Loads the state-action and goal encoders using the parameters saved in the critic_params.txt file.
+    The encoders are created from the parameters and returned.
+
+    Args:
+        env: Environment name.
+        critic_path: Path to the critic parameters file.
+    
+    Returns:
+        sa_encoder: State-action encoder as PyTorch neural network.
+        g_encoder: Goal encoder as PyTorch neural network.
+    """
     if critic_path is None:
         critic_path = f"manual_checkpoints/{env}/critic_params.txt"
 
@@ -128,6 +150,10 @@ def load_encoders(env, critic_path=None):
 
 
 class MultiHeadNet(nn.Module):
+    """
+    Class for a multi-head neural network.
+    Used to create the policy network which outputs two tensors, one for the means and one for the standard deviations of the Gaussian distributions.
+    """
     def __init__(self, linear_layers, output_layers):
         super(MultiHeadNet, self).__init__()
         self.linear_layers = nn.ModuleList(linear_layers)
@@ -196,6 +222,16 @@ def create_policy_net(params):
 
 
 def load_policy_net(policy_path):
+    """
+    Loads the policy network using the parameters saved in the policy_params.txt file.
+    The policy network is created from the parameters and returned.
+
+    Args:
+        policy_path: Path to the policy parameters file.
+
+    Returns:
+        policy_net: Policy network as PyTorch neural network.
+    """
     # load parameter dict
     with open(policy_path, "r") as f:
         # read raw string and replace single quotes with double quotes
@@ -208,6 +244,18 @@ def load_policy_net(policy_path):
     return policy_net
 
 def load_trained_networks(environment):
+    """
+    Loads the trained state-action encoder, goal encoder, and policy network for the specified environment.
+    The networks are loaded from the manual_checkpoints folder.
+
+    Args:
+        environment: Environment name.
+    
+    Returns:
+        sa_encoder: State-action encoder as PyTorch neural network.
+        g_encoder: Goal encoder as PyTorch neural network.
+        policy_net: Policy network as PyTorch neural network.
+    """
     checkpoints_path = f"manual_checkpoints/{environment}"
 
     sa_encoder, g_encoder = load_encoders(f"{checkpoints_path}/critic_params.txt")
@@ -221,6 +269,18 @@ def load_trained_networks(environment):
     return sa_encoder, g_encoder, policy_net
 
 def get_env(environment_name, return_obs_dim=False, seed=42, return_raw_gym_env=False):
+    """
+    Loads the environment with the specified name and returns it.
+
+    Args:
+        environment_name: Name of the environment to load.
+        return_obs_dim: Boolean indicating whether to return the observation dimensionality of the environment.
+        seed: Seed for the environment.
+        return_raw_gym_env: Boolean indicating whether to return the raw gym environment or the custom environment.
+    
+    Returns:
+        env: Environment object.
+    """
     env, obs_dim = contrastive_utils.make_environment(
         env_name=environment_name,
         start_index=0,
@@ -431,6 +491,18 @@ def plot_encodings(encodings, path, state_colors=None, colorbar=None, colorbar_t
     plt.close()
 
 def get_steps_to_center(env, states, env_name="point_Spiral11x11"):
+    """
+    Returns an array of steps to the center for each state in the list of states.
+    Currently only works for the point_Spiral11x11 environment.
+
+    Args:
+        env: Environment object.
+        states: List of states to compute steps to center for.
+        env_name: Name of the environment.
+    
+    Returns:
+        List of steps to center for each state.
+    """
     if env_name=="point_Spiral11x11":
         distances = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                               [1, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],
@@ -562,88 +634,102 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
         return state_colors, colorbar, colorbar_ticks
 
 def produce_plot(log_paths, labels, x_var, y_var, saving_path, max_steps=None, figsize=(10,6)):
-        # define colors, one for each curve
-        colors = []
-        for i in range(len(log_paths)):
-            colors.append(plt.cm.get_cmap("tab10")(i))
-        # define lookup table for axis labels
-        axis_labels = {
-            "actor_steps": "Actor Steps",
-            "evaluator_steps": "Evaluator Steps",
-            "learner_steps": "Learner Steps",
-            "success_1000": "Success Rate",
-            "actor_loss": "Actor Loss",
-            "critic_loss": "Critic Loss"
-        }
-        # initialize plot
-        plt.figure()
-        # set figsize
-        plt.figure(figsize=figsize)
-        for i,(log_path, label) in enumerate(zip(log_paths, labels)):
-            # load logs.csv from path, if path is list of paths, load all logs
-            if isinstance(log_path, list):
-                logs = []
-                for path in log_path:
-                    logs.append(pd.read_csv(path))
-            else:
-                logs = pd.read_csv(log_path)
-            
-            # extract X-axis, if logs is list of logs: average over all logs
-            if isinstance(log_path, list):
-                x_values = [log[x_var] for log in logs]
-                # trim all logs to the shortest log
-                min_length = min([len(x) for x in x_values])
-                x_values = [x[:min_length] for x in x_values]
-                mean_x = np.mean(x_values, axis=0)
-            else:
-                x = logs[x_var]
-            
-            # extract Y-axis, if logs is list of logs: average over all logs
-            if isinstance(log_path, list):
-                y_values = [log[y_var] for log in logs]
-                # trim all logs to the shortest log
-                min_length = min([len(y) for y in y_values])
-                y_values = [y[:min_length] for y in y_values]
-                mean_y = np.mean(y_values, axis=0)
-                std_y = np.std(y_values, axis=0)
-            else:
-                y = logs[y_var]
-            
-            # if a max_steps is specified, only plot up to this step
-            if max_steps is not None:
-                if isinstance(log_path, list):
-                    # find first index where x value is equal or greater than max_steps
-                    idx = np.argmax(mean_x >= max_steps)
-                    mean_x = mean_x[:idx]
-                    mean_y = mean_y[:idx]
-                    std_y = std_y[:idx]
-                else:
-                    # find first index where x value is equal or greater than max_steps
-                    idx = np.argmax(x >= max_steps)
-                    x = x[:idx]
-                    y = y[:idx]
+    """
+    Produces and saves a plot of the training curves for the specified variables.
 
-            # plot the curve for this log
+    Args:
+        log_paths: List of paths to the logs.csv files containing the training curves.
+        labels: Labels for the different logs.
+        x_var: Variable to use for the x-axis.
+        y_var: Variable to use for the y-axis.
+        saving_path: Path to save the plot.
+        max_steps: Maximum number of steps to plot.
+    
+    Returns:
+        None
+    """
+    # define colors, one for each curve
+    colors = []
+    for i in range(len(log_paths)):
+        colors.append(plt.cm.get_cmap("tab10")(i))
+    # define lookup table for axis labels
+    axis_labels = {
+        "actor_steps": "Actor Steps",
+        "evaluator_steps": "Evaluator Steps",
+        "learner_steps": "Learner Steps",
+        "success_1000": "Success Rate",
+        "actor_loss": "Actor Loss",
+        "critic_loss": "Critic Loss"
+    }
+    # initialize plot
+    plt.figure()
+    # set figsize
+    plt.figure(figsize=figsize)
+    for i,(log_path, label) in enumerate(zip(log_paths, labels)):
+        # load logs.csv from path, if path is list of paths, load all logs
+        if isinstance(log_path, list):
+            logs = []
+            for path in log_path:
+                logs.append(pd.read_csv(path))
+        else:
+            logs = pd.read_csv(log_path)
+        
+        # extract X-axis, if logs is list of logs: average over all logs
+        if isinstance(log_path, list):
+            x_values = [log[x_var] for log in logs]
+            # trim all logs to the shortest log
+            min_length = min([len(x) for x in x_values])
+            x_values = [x[:min_length] for x in x_values]
+            mean_x = np.mean(x_values, axis=0)
+        else:
+            x = logs[x_var]
+        
+        # extract Y-axis, if logs is list of logs: average over all logs
+        if isinstance(log_path, list):
+            y_values = [log[y_var] for log in logs]
+            # trim all logs to the shortest log
+            min_length = min([len(y) for y in y_values])
+            y_values = [y[:min_length] for y in y_values]
+            mean_y = np.mean(y_values, axis=0)
+            std_y = np.std(y_values, axis=0)
+        else:
+            y = logs[y_var]
+        
+        # if a max_steps is specified, only plot up to this step
+        if max_steps is not None:
             if isinstance(log_path, list):
-                # if we plot an average x value, we also need to plot the standard deviation
-                plt.plot(mean_x, mean_y, label=label, color=colors[i])
-                plt.fill_between(mean_x, mean_y-std_y, mean_y+std_y, alpha=0.3, color=colors[i])
+                # find first index where x value is equal or greater than max_steps
+                idx = np.argmax(mean_x >= max_steps)
+                mean_x = mean_x[:idx]
+                mean_y = mean_y[:idx]
+                std_y = std_y[:idx]
             else:
-                plt.plot(x, y, label=label, color=colors[i])
-            
-        # set labels, retrieve axis labels from lookup table (if it doesn't exist in there, use the variable name)
-        plt.xlabel(axis_labels.get(x_var, x_var), fontsize=12)
-        plt.ylabel(axis_labels.get(y_var, y_var), fontsize=12)
+                # find first index where x value is equal or greater than max_steps
+                idx = np.argmax(x >= max_steps)
+                x = x[:idx]
+                y = y[:idx]
 
-        # add legend
-        plt.legend(loc="lower right")
+        # plot the curve for this log
+        if isinstance(log_path, list):
+            # if we plot an average x value, we also need to plot the standard deviation
+            plt.plot(mean_x, mean_y, label=label, color=colors[i])
+            plt.fill_between(mean_x, mean_y-std_y, mean_y+std_y, alpha=0.3, color=colors[i])
+        else:
+            plt.plot(x, y, label=label, color=colors[i])
+        
+    # set labels, retrieve axis labels from lookup table (if it doesn't exist in there, use the variable name)
+    plt.xlabel(axis_labels.get(x_var, x_var), fontsize=12)
+    plt.ylabel(axis_labels.get(y_var, y_var), fontsize=12)
 
-        # add grid
-        plt.grid(alpha=0.5)
+    # add legend
+    plt.legend(loc="lower right")
 
-        # save plot
-        plt.savefig(saving_path+f"_{y_var}.png")
-        plt.close()
+    # add grid
+    plt.grid(alpha=0.5)
+
+    # save plot
+    plt.savefig(saving_path+f"_{y_var}.png")
+    plt.close()
     
 def plot_training_curves(checkpoint_paths, curve_labels, saving_path, vars, max_steps=[None,None,None], figsize=(10,6)):
     """
@@ -877,6 +963,12 @@ def get_action_strengths(action_grid):
     return strength_grid
 
 class ContrastiveCritic:
+    """
+    Class that represents a contrastive critic as used by Eysenbach et al. (2023).
+    The critic is used to evaluate state-action pairs with respect to a goal.
+    The critic is a simple feed-forward neural network that encodes state-action pairs and goals.
+    The critic's value is the inner product of the two encodings.
+    """
     def __init__(self, env, params_path, obs_dim):
         self.env = env
         self.params_path = params_path
@@ -932,6 +1024,10 @@ class ContrastiveCritic:
 
 
 class GreedyAgent:
+    """
+    Agent that selects actions greedily based on the critic's evaluation of state-action pairs.
+    The agent uses a contrastive critic to evaluate state-action pairs with respect to a goal.
+    """
     def __init__(self, env, action_grid, params_path, obs_dim, epsilon=0.05, value_type="contrastive_critic"):
         self.env = env
         self.params_path = params_path
@@ -1032,6 +1128,9 @@ class GreedyAgent:
 
 
 class RandomAgent:
+    """
+    Agent that selects actions randomly from the action grid.
+    """
     def __init__(self, action_grid, obs_dim, env):
         self.action_grid = action_grid
         self.obs_dim = obs_dim
@@ -1085,6 +1184,12 @@ class RandomAgent:
 
 
 class ContrastiveActor:
+    """
+    Agent that selects actions based on the policy network, like used by Eysenbach et al. (2023).
+    The policy network is a feed-forward neural network that outputs the mean and scale of a normal distribution.
+    The agent can either sample actions from the distribution or select the mode action.
+    By default, the agent samples actions (distributions collaps anyway, leading to the same result).
+    """
     def __init__(self, params_path, obs_dim, eval_mode):
         self.params_path = params_path
         self.policy_net = self.load_net(params_path)
@@ -1137,6 +1242,10 @@ class ContrastiveActor:
         return sampled_action
 
 class ContrastiveAgent:
+    """
+    Contrastive agent that selects actions based on the policy network and evaluates them using a contrastive critic.
+    Currently only supports contrastive critic evaluation, making it equivalent to the ContrastiveActor.
+    """
     def __init__(self, env, params_path, obs_dim, eval_mode=False):
         self.env = env
         self.obs_dim = obs_dim

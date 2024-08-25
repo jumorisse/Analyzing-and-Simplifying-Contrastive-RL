@@ -262,19 +262,19 @@ def state_vs_goal_investigation(states, sa_encoders, g_encoders, save_dir, goals
 if __name__ == "__main__":
     # parameter for the experiment
     sample_states = False # whether to randomly sample states or generate evenly spaced states
-    sample_actions_for_all_states = False # whether to sample actions for all states or only for a single state
+    sample_actions_for_all_states = False # whether to sample actions for all states or only for a single state, set this to True to reproduce Figure 4.1c
     if sample_states:
         n_state_samples = 10000
         sample_actions_for_all_states = False # to prevent crashing (too many states)
         perplexity = 100
     else:
         generation_factor = 3 # used to generate evenly spaced states, the higher the more states (e.g. 3 -> 217 states)
-        perplexity = 20
+        perplexity = 20 # perplexity for t-SNE, if sample_actions_for_all_states is True, perplexity is set to 30
         if sample_actions_for_all_states:
             perplexity = 30
     n_actions = 10 # nr of actions sampled per state
     normalize_representations = False # whether to normalize the encodings to have unit length
-    inspect_encoders = False
+    inspect_encoders = False # whether to inspect the encoders after loading them, i.e. print the network architecture
 
     # parameter used during training (used to construct paths for loading encoder parameter)
     environment_name = "point_Spiral11x11"

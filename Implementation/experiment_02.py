@@ -153,17 +153,17 @@ def visualize_actions(actions, agent_names, states, goal, env, colors, save_path
 
 if __name__ == "__main__":
     environment_name = "point_Spiral11x11"
-    n_tasks = 500 # number of tasks to sample, for reproduction should be 1000
+    n_tasks = 500 # number of tasks to sample, for reproduction should be 500
     max_episode_length = 100 # maximum number of steps in an episode, for reproduction should be 100
     seeds  = [0, 21, 42, 97, 1453]
     params_paths = ["manual_checkpoints/two_encoders/point_Spiral11x11/original_seed"+str(seed) for seed in seeds]
     numpy_seed = 42 # seed for numpy, for reproduction should be 42
-    action_grid_scale = 2 # scaling factor for the action grid from which greedy actor chooses, for reproduction should be 1
-    np.random.seed(numpy_seed)
-    contrastive_eval_mode = False
+    action_grid_scale = 2 # scaling factor for the action grid from which greedy actor chooses, for reproduction should be 2
+    np.random.seed(numpy_seed) # set seed for numpy
+    contrastive_eval_mode = False # whether to evaluate the contrastive agent in evaluation mode (using the mean of the distribution) or not
 
-    evaluating_performances = False
-    computing_action_distances = False
+    evaluating_performances = True
+    computing_action_distances = True
     visualizing_actions = True
 
     # get the action grid, i.e. the actions the greedy agent can select from

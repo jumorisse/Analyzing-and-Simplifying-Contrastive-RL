@@ -85,20 +85,48 @@ if __name__ == '__main__':
 
             ]
         ]
-    
     curve_labels = [
-        #"Eysenbach et al.",
-        "Parameterized Actor",
-        "Random Actor",
-        #"Mine",
-        "95% Greedy Actor (9 actions)",
-        "95% Greedy Actor (25 actions)",
-        "95% Greedy Actor (81 actions)"
+        "Parameterized",
+        "Random",
+        "Greedy (09 actions)",
+        "Greedy (25 actions)",
+        "Greedy (81 actions)"
     ]
-
     saving_path = "experiment_results/experiment_03/param_vs_greedy/"
 
-    #saving_path = "experiment_results/experiment_03/blog_figures/"
+    produce_simplified_plots = False # used to produce a simplified version of this plot, e.g. for the repo README
+    
+    if produce_simplified_plots:
+        checkpoint_paths = [
+                [
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed0",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed21",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed42",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed97",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/original_seed1453"
+                ],
+                [
+                "manual_checkpoints/two_encoders/point_Spiral11x11/random_seed0",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/random_seed21",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/random_seed42",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/random_seed97",
+                "manual_checkpoints/two_encoders/point_Spiral11x11/random_seed1453"
+                ],
+                [
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed42",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed21",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed0",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed97",
+                    "manual_checkpoints/two_encoders/point_Spiral11x11/greedy_randominit_25actions_seed1453"
+                ]
+            ]
+        
+        curve_labels = [
+            "Eysenbach et al. (2023)",
+            "Random Actor",
+            "Ours"
+        ]
+        saving_path = "experiment_results/experiment_03/blog_figures/"
 
     vars = ["success_1000", "actor_loss", "critic_loss"]
     plot_training_curves(checkpoint_paths, curve_labels, saving_path, vars, max_steps=[500_000, None, None])
@@ -145,8 +173,6 @@ if __name__ == '__main__':
         ]
     
     labels = [
-        #"Eysenbach et al.",
-        #"Mine",
         "Parameterized",
         "Random",
         "Greedy (09 actions)",
@@ -155,10 +181,11 @@ if __name__ == '__main__':
     ]
     saving_path = "experiment_results/experiment_03/param_vs_greedy_eval/"
     np.random.seed(42) # for reproduction: 42
-    #evaluate_checkpoints(checkpoint_paths, labels)
+    evaluate_checkpoints(checkpoint_paths, labels)
     record_inference_times(checkpoint_paths, labels)
 
     """
+    Evaluation Results:
     Epsilon = 0.05
         Parameterized is evaluated across 5 seeds.
         Parameterized success rates mean per seed: [0.778 0.798 0.834 0.816 0.798]

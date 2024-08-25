@@ -22,7 +22,8 @@ for i in range(samples):
     successes += success
 print("Success rate without training: ", successes/samples)
 
-if False:
+# Produce an example of randomly sampled task whose start and goal are separated by a wall but the task is still successful
+if True:
     # sample tasks until sampling a task that already satisfies the success criterion
     # (goal distance of 2)
     env = get_env("point_Spiral11x11")
