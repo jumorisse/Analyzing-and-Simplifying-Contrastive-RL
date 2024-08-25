@@ -14,6 +14,7 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from point_env import WALLS, PointEnv, PointImage
 import pandas as pd
+import time
 
 def sigmoid(x):
     """
@@ -424,7 +425,7 @@ def plot_encodings(encodings, path, state_colors=None, colorbar=None, colorbar_t
 
             if two_colorbars:
                 colorbar = plt.cm.ScalarMappable(cmap="Greys")
-                plt.colorbar(colorbar, label="Sampled Actions' Strength", ax=[ax], location="left").set_ticklabels(list(map(str, list(action_colorbar_ticks))))
+                plt.colorbar(colorbar, label="Sampled Actions' Strength", ax=[ax], location="left").set_ticklabels(list(map(str, list(action_colorbar_ticks)))[::-1])
 
     plt.savefig(path)
     plt.close()
@@ -492,6 +493,7 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
     if color_meaning == "steps":
         for state, color in zip(states, state_colors):
             env_img = env._draw_state(env_img, state, color=color, scale=30, radius=radius)
+
     elif color_meaning == "critic":
         state_values = state_colors
         # state_colors are list of critic values, need to be mapped to colors
@@ -509,9 +511,11 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
         state_colors = [np.array(color_palette(value))[:3]*255 for value in scaled_values]
         for state, color in zip(states, state_colors):
             env_img = env._draw_state(env_img, state, color=color, scale=30, radius=radius)
+
     elif color_meaning == "ids":
         for i, state in enumerate(states):
             env_img = env._draw_state(env_img, state, color=state_colors[i], scale=30, radius=radius)
+
     else:
         if state_colors is None:
             for state in states:
@@ -534,8 +538,11 @@ def visualize_states(env, states, color_meaning="steps", save_path=None, state_c
             value_range = max_value - min_value
             colorbar_ticks = [min_value + i * value_range / 5 for i in range(6)]
         elif inverse_palette:
+            value_range = max_value - min_value
+            colorbar_ticks = [min_value + i * value_range / 5 for i in range(6)]
+            print("Colorbar ticks:", colorbar_ticks)
             # we inversed the color palette, so we need to invert the colorbar ticks as well
-            colorbar_ticks = range(int(max_value), int(min_value), -10)
+            colorbar_ticks = colorbar_ticks[::-1]
         # round colorbar ticks to decimal places
         colorbar_ticks = [int(tick) for tick in colorbar_ticks]
         if color_meaning == "steps":
@@ -731,13 +738,17 @@ def critic_dist(array1, array2):
     """
     return sigmoid(combine_repr(array1, array2))
 
-def get_action_colors(actions):
+def get_action_colors(actions, state_color=None, color=True):
     """
     Maps actions to rgb colors based on their strength (strength is the vector length of the action).
-    Mapping is done from light gray (low strength) to black (high strength).
+    Mapping can be done in two ways:
+        - color: True: Actions are colored based on the state they are paired with. The color fades out the stronger the action.
+        - color: False: Actions are grayscale based on their strength (white = low strength, black = high strength).
 
     Args:
-        actions: Array of actions to map to colors, shape (nr_actions, action_dim).
+        actions: Array of actions to map to colors, shape (nr_actions_sampled_per_state, action_dim).
+        state_color: Color of the state for which the actions were sampled.
+        color: Boolean indicating whether to color the actions based on the state they are paired with or whether to grayscale them based on their strengths.
     
     Returns:
         colors: List of rgb colors corresponding to the actions.
@@ -751,13 +762,33 @@ def get_action_colors(actions):
     #max_strength = np.max(action_strengths)
     min_strength = 0
     max_strength = np.sqrt(2)
-    # create color palette from light gray to black
-    color_palette = plt.cm.get_cmap("Greys", 256)
-    # map strengths to colors
-    colors = [np.array(color_palette((strength - min_strength) / (max_strength - min_strength))[:3])*255 for strength in action_strengths]
-    # create colorbar
-    colorbar = plt.cm.ScalarMappable(cmap=color_palette).set_array(action_strengths)
-    colorbar_ticks = [min_strength, max_strength]
+
+    # if color is False, actions are grayscale depending on their strength (white = low strength, black = high strength)
+    if not color:
+        # create color palette from light gray to black
+        color_palette = plt.cm.get_cmap("Greys", 256)
+        # map strengths to colors
+        colors = [np.array(color_palette((strength - min_strength) / (max_strength - min_strength))[:3])*255 for strength in action_strengths]
+        # create colorbar
+        colorbar = plt.cm.ScalarMappable(cmap=color_palette).set_array(action_strengths)
+        colorbar_ticks = [min_strength, max_strength]
+
+    # if color is True, actions share the state color of the state they are paired with
+    # however, they get more opaque with increasing strength (low strength = no fade, high strength = strong fade)
+    elif color:
+        # the action colors are the state color but with increasing opacity the stronger the action
+        colors = []
+        for strength in action_strengths:
+            # calculate opacity based on strength
+            opacity = (strength - min_strength) / (max_strength - min_strength)
+            # fade out the state color
+            color = state_color * (1-opacity) + np.array([255,255,255]) * opacity
+            colors.append(color)
+
+        # set colorbar and ticks to None, because we don't need them
+        colorbar = None
+        colorbar_ticks = None
+
     return colors, colorbar, colorbar_ticks
 
 def sample_tasks(env, n_tasks, seed=42):
@@ -891,11 +922,11 @@ class ContrastiveCritic:
         # encode goal
         g_encoding = self.encode_g(goal)
 
-        # calculate value, i.d. inner product of the two encodings
+        # calculate critic value, i.e. inner product of the two encodings
         inner_product = np.dot(sa_encoding, g_encoding)
 
         # apply sigmoid activation
-        inner_product = sigmoid(inner_product)
+        # inner_product = sigmoid(inner_product)
 
         return inner_product
 
@@ -1155,7 +1186,7 @@ class ContrastiveAgent:
         return trajectory, reached_goal
 
 
-def evaluate_performances(trajectories, steps_in_goal, agent_names, nr_tasks = 100):
+def evaluate_performances(trajectories, steps_in_goal, agent_names, nr_tasks = 100, only_final_reward_matters = False):
     """
     Evaluates the performances of the agents on the tasks.
     Prints the success rate of each agent on each task and the average success rate of each agent.
@@ -1180,14 +1211,20 @@ def evaluate_performances(trajectories, steps_in_goal, agent_names, nr_tasks = 1
             agent_success_rates = []
             agent_goal_steps = []
             for j in range(len(trajectories[i])):
+                all_rewards = [traj[2] for traj in trajectories[i][j]]
+                any_reward = np.sum(all_rewards) >= 1
                 final_reward = trajectories[i][j][-1][2]
                 if len(steps_in_goal[i][j]) > 0 and final_reward == 1:
                     first_step_in_goal = steps_in_goal[i][j][0]
                 else:
                     first_step_in_goal = np.nan
-                print("Task", j+1, ":", "Reached goal:", final_reward)
+                if only_final_reward_matters:
+                        success = final_reward
+                else:
+                    success = any_reward
+                print("Task", j+1, ":", "Reached goal:", success)
                 print("First Step in Goal:", first_step_in_goal)
-                agent_success_rates.append(final_reward)
+                agent_success_rates.append(success)
                 agent_goal_steps.append(first_step_in_goal)
                 print()
             success_rates.append(agent_success_rates)
@@ -1215,12 +1252,18 @@ def evaluate_performances(trajectories, steps_in_goal, agent_names, nr_tasks = 1
                 seed_success_rates = []
                 seed_first_steps_in_goal = []
                 for k in range(len(trajectories[i][j])):
+                    all_rewards = [traj[2] for traj in trajectories[i][j][k]]
+                    any_reward = np.sum(all_rewards) >= 1
                     final_reward = trajectories[i][j][k][-1][2]
                     if len(steps_in_goal[i][j][k]) > 0 and final_reward == 1:
                         first_step_in_goal = steps_in_goal[i][j][k][0]
                     else:
                         first_step_in_goal = np.nan
-                    seed_success_rates.append(final_reward)
+                    if only_final_reward_matters:
+                        success = final_reward
+                    else:
+                        success = any_reward
+                    seed_success_rates.append(success)
                     seed_first_steps_in_goal.append(first_step_in_goal)
                 agent_success_rates.append(seed_success_rates)
                 agent_first_steps_in_goal.append(seed_first_steps_in_goal)
@@ -1230,16 +1273,19 @@ def evaluate_performances(trajectories, steps_in_goal, agent_names, nr_tasks = 1
         # print summary, i.e. average success rate overall and of each agent
         print("Summary:")
         for i in range(len(trajectories)):
+            # compute average success rates per seed ([avg_success_seed1, avg_success_seed2, ...])
+            average_success_rates_per_seed = np.mean(success_rates[i], axis=1)
             print(agent_names[i], "is evaluated across", len(success_rates[i]), "seeds.")
-            print(agent_names[i], "success rate mean across seeds:", np.mean(success_rates[i]))
-            print(agent_names[i], "success rate std across seeds:", np.std(success_rates[i]))
+            print(agent_names[i], "success rates mean per seed:", average_success_rates_per_seed)
+            print(agent_names[i], "success rate mean across seeds:", np.mean(average_success_rates_per_seed))
+            print(agent_names[i], "success rate std across seeds:", np.std(average_success_rates_per_seed))
             try:
                 print(agent_names[i], "average steps to reach goal first time:", np.nanmean(first_steps_in_goal[i]))
             except ZeroDivisionError or IndexError:
                 print(agent_names[i], "average steps to reach goal first time: N/A, didn't solve any task")
 
 
-def evaluate_checkpoints(checkpoint_paths, labels, nr_tasks=2, environment_name="point_Spiral11x11"):
+def evaluate_checkpoints(checkpoint_paths, labels, nr_tasks=500, environment_name="point_Spiral11x11", epsilon=0.1):
     """
     Performs the experiment 02 evaluation using the given checkpoints.
     Evaluation consists of:
@@ -1255,19 +1301,20 @@ def evaluate_checkpoints(checkpoint_paths, labels, nr_tasks=2, environment_name=
         labels: List of labels for the checkpoints.
         nr_tasks: Number of tasks to evaluate on.
         environment_name: Name of environment to evaluate on.
+        epsilon: Epsilon value for the epsilon-greedy policy
     
     Returns:
         None
     """
     # load the environment, obs_dim, and action grid
     env, obs_dim = get_env(environment_name, return_obs_dim=True, seed=42, return_raw_gym_env=True)
-    action_grid_25 = scale_action_grid(basic_action_grid, 1)
     action_grid_9 = scale_action_grid(basic_action_grid, 0)
+    action_grid_25 = scale_action_grid(basic_action_grid, 1)
     action_grid_81 = scale_action_grid(basic_action_grid, 2)
 
     action_grids = {
-        "25": action_grid_25,
         "09": action_grid_9,
+        "25": action_grid_25,
         "81": action_grid_81
     }
 
@@ -1287,8 +1334,8 @@ def evaluate_checkpoints(checkpoint_paths, labels, nr_tasks=2, environment_name=
             if agent_type.lower() == "contrastive" or agent_type.lower() == "parameterized":
                 actor = ContrastiveAgent(env, checkpoint_path, obs_dim)
             elif agent_type.lower() == "greedy" or agent_type.lower().split(" ")[0] == "greedy":
-                print("Grid key:", agent_type.lower().split(" ")[1][1:3])
-                actor = GreedyAgent(env, action_grids[agent_type.lower().split(" ")[1][1:3]], checkpoint_path, obs_dim, epsilon=0.05, value_type="contrastive_critic")
+                #print("Grid key:", agent_type.lower().split(" ")[1][1:3])
+                actor = GreedyAgent(env, action_grids[agent_type.lower().split(" ")[1][1:3]], checkpoint_path, obs_dim, epsilon=epsilon, value_type="contrastive_critic")
             elif agent_type.lower() == "random":
                 actor = RandomAgent(action_grid_25, obs_dim, env)
             else:
@@ -1322,6 +1369,86 @@ def evaluate_checkpoints(checkpoint_paths, labels, nr_tasks=2, environment_name=
     
     # evaluate the performances of the agents
     evaluate_performances(trajectory_collection, steps_in_goal_collection, labels, nr_tasks)
+
+def record_inference_times(checkpoint_paths, labels, nr_tasks=500, environment_name="point_Spiral11x11", epsilon=0.1):
+    """
+    Uses the checkpoint paths to construct different actors.
+    Then, the inference time of each actor is recorded by solving a number of tasks.
+    Times are averaged over the tasks and seeds and an overview is printed.
+
+    Args:
+        checkpoint_paths: List of paths to the checkpoints.
+        labels: List of labels for the checkpoints.
+        nr_tasks: Number of tasks to evaluate on.
+        environment_name: Name of environment to evaluate on.
+        epsilon: Epsilon value for the epsilon-greedy policy
+    """
+    # load the environment, obs_dim, and action grid
+    env, obs_dim = get_env(environment_name, return_obs_dim=True, seed=42, return_raw_gym_env=True)
+    action_grid_9 = scale_action_grid(basic_action_grid, 0)
+    action_grid_25 = scale_action_grid(basic_action_grid, 1)
+    action_grid_81 = scale_action_grid(basic_action_grid, 2)
+
+    action_grids = {
+        "09": action_grid_9,
+        "25": action_grid_25,
+        "81": action_grid_81
+    }
+
+    # sample tasks
+    tasks = sample_tasks(env, nr_tasks)
+
+    # load the encoders and actors
+    sa_encoders = []
+    g_encoders = []
+    actors = []
+    for i,agent_type in enumerate(labels):
+        agent_type_sa_encoders = []
+        agent_type_g_encoders = []
+        agent_type_actors = []
+        for j,checkpoint_path in enumerate(checkpoint_paths[i]):
+            sa_encoder, g_encoder = load_encoders(env, checkpoint_path+"/critic_params.txt")
+            if agent_type.lower() == "contrastive" or agent_type.lower() == "parameterized":
+                actor = ContrastiveAgent(env, checkpoint_path, obs_dim)
+            elif agent_type.lower() == "greedy" or agent_type.lower().split(" ")[0] == "greedy":
+                #print("Grid key:", agent_type.lower().split(" ")[1][1:3])
+                actor = GreedyAgent(env, action_grids[agent_type.lower().split(" ")[1][1:3]], checkpoint_path, obs_dim, epsilon=epsilon, value_type="contrastive_critic")
+            elif agent_type.lower() == "random":
+                actor = RandomAgent(action_grid_25, obs_dim, env)
+            else:
+                raise ValueError("Invalid agent type, check labels. They must be either ")
+            agent_type_sa_encoders.append(sa_encoder)
+            agent_type_g_encoders.append(g_encoder)
+            agent_type_actors.append(actor)
+        sa_encoders.append(agent_type_sa_encoders)
+        g_encoders.append(agent_type_g_encoders)
+        actors.append(agent_type_actors)
+
+    # sample tasks
+    tasks = sample_tasks(env, nr_tasks)
+
+    # record inference times
+    print("Recording inference times...")
+    inference_times = []
+    for i,agent_type in enumerate(labels):
+        agent_inference_times = []
+        for j in range(len(actors[i])):
+            print("Agent:", agent_type, "Seed:", j)
+            for task in tasks:
+                start_time = time.time()
+                actors[i][j].solve_task(task)
+                end_time = time.time()
+                inference_time = end_time - start_time
+                agent_inference_times.append(inference_time)
+        inference_times.append(agent_inference_times)
+    
+    # print the average inference times
+    print("Average Inference Times:")
+    for i,agent_type in enumerate(labels):
+        print("Agent:", agent_type)
+        print("Average Inference Time:", np.mean(inference_times[i]))
+        print("Inference Time Std:", np.std(inference_times[i]))
+        print()
 
 
 

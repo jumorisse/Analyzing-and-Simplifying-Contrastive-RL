@@ -139,28 +139,32 @@ def visualize_actions(actions, agent_names, states, goal, env, colors, save_path
 
     # add legend (showing agent names and colors)
     plt.imshow(env_img)
-    plt.axis("off")
     legend_elements = []
     for i in range(len(agent_names)):
         legend_elements.append(patches.Patch(color=np.array(colors[i])/255, label=agent_names[i]))
     plt.legend(handles=legend_elements, loc="lower left")
+
+    # turn off axis ticks, but keep axis
+    plt.axis("on")
+    plt.xticks([])
+    plt.yticks([])
+
     plt.savefig(save_path)
 
 if __name__ == "__main__":
     environment_name = "point_Spiral11x11"
-    n_tasks = 2 # number of tasks to sample, for reproduction should be 100
-    max_episode_length = 3 # maximum number of steps in an episode, for reproduction should be 100
-    #seeds  = [0, 21, 42, 97, 1453]
-    seeds = [0, 21]
+    n_tasks = 500 # number of tasks to sample, for reproduction should be 1000
+    max_episode_length = 100 # maximum number of steps in an episode, for reproduction should be 100
+    seeds  = [0, 21, 42, 97, 1453]
     params_paths = ["manual_checkpoints/two_encoders/point_Spiral11x11/original_seed"+str(seed) for seed in seeds]
     numpy_seed = 42 # seed for numpy, for reproduction should be 42
-    action_grid_scale = 2 # scaling factor for the action grid from which greedy actor chooses, for reproduction should be 2
+    action_grid_scale = 2 # scaling factor for the action grid from which greedy actor chooses, for reproduction should be 1
     np.random.seed(numpy_seed)
     contrastive_eval_mode = False
 
     evaluating_performances = False
-    computing_action_distances = True
-    visualizing_actions = False
+    computing_action_distances = False
+    visualizing_actions = True
 
     # get the action grid, i.e. the actions the greedy agent can select from
     action_grid = scale_action_grid(basic_action_grid, action_grid_scale)
@@ -333,226 +337,94 @@ if __name__ == "__main__":
             # construct task
             task = np.concatenate((state, goal))
             # get actions
-            greedy_action = greedy_agent_00.select_action(task)
-            contrastive_action = contrastive_agent.select_action(task)
+            greedy_action = greedy_agents_00[0].select_action(task)
+            contrastive_action = contrastive_agents[0].select_action(task)
             # store actions
             greedy_actions.append(greedy_action)
             contrastive_actions.append(contrastive_action)
         # Visualize actions
-        visualize_actions([greedy_actions, contrastive_actions], ["GreedyAgent", "ContrastiveAgent"], states, goal, env, [[255,0,0], [0,0,255]], save_path)
+        visualize_actions([greedy_actions, contrastive_actions], ["Greedy Agent", "Parameterized Agent"], states, goal, env, [[255,0,0], [0,0,255]], save_path)
 
 
     """
-    100 tasks with 100 max episode steps
-        Scaling Factor: 5 (65x65=4225)
+    Final Results for Scaling factor 2, Seed 42 (any reward, non-sigmoid critic, 500 tasks)
+        Greedy_00 is evaluated across 5 seeds.
+        Greedy_00 success rates mean per seed: [0.71  0.71  0.698 0.694 0.638]
+        Greedy_00 success rate mean across seeds: 0.69
+        Greedy_00 success rate std across seeds: 0.0267731208490904
+        Greedy_00 average steps to reach goal first time: 7.50346565847511
+        Greedy_01 is evaluated across 5 seeds.
+        Greedy_01 success rates mean per seed: [0.74  0.744 0.726 0.712 0.654]
+        Greedy_01 success rate mean across seeds: 0.7152
+        Greedy_01 success rate std across seeds: 0.032609201155502095
+        Greedy_01 average steps to reach goal first time: 8.306184935701163
+        Greedy_05 is evaluated across 5 seeds.
+        Greedy_05 success rates mean per seed: [0.768 0.798 0.77  0.77  0.738]
+        Greedy_05 success rate mean across seeds: 0.7688
+        Greedy_05 success rate std across seeds: 0.018998947339260684
+        Greedy_05 average steps to reach goal first time: 9.986374407582938
+        Greedy_10 is evaluated across 5 seeds.
+        Greedy_10 success rates mean per seed: [0.796 0.822 0.798 0.792 0.768]
+        Greedy_10 success rate mean across seeds: 0.7952
+        Greedy_10 success rate std across seeds: 0.01718604084715265
+        Greedy_10 average steps to reach goal first time: 10.688563049853373
+        Random is evaluated across 5 seeds.
+        Random success rates mean per seed: [0.442 0.434 0.46  0.438 0.43 ]
+        Random success rate mean across seeds: 0.4408
+        Random success rate std across seeds: 0.010400000000000008
+        Random average steps to reach goal first time: 27.689243027888445
+        Contrastive is evaluated across 5 seeds.
+        Contrastive success rates mean per seed: [0.774 0.8   0.834 0.804 0.794]
+        Contrastive success rate mean across seeds: 0.8012
+        Contrastive success rate std across seeds: 0.019374209661299713
+        Contrastive average steps to reach goal first time: 6.173820879703233
+        ##########################
+        Comparing Actions
+        ##########################
+        Seed 0
+        Seed 21
         Seed 42
-        Summary:
-        Greedy_100 success rate: 0.59
-        Greedy_99 success rate: 0.59
-        Greedy_95 success rate: 0.64
-        Greedy_90 success rate: 0.63
-        Random success rate: 0.13
-        Contrastive success rate: 0.66
-
-        Comparing Actions of ContrastiveAgent (leading) and GreedyAgent (trailing) on 10 tasks with 100 max episode steps.
+        Seed 97
+        Seed 1453
+        Comparing Actions of ContrastiveAgent (leading) and GreedyAgent (trailing) on 500 tasks with 100 max episode steps.
         ###################################
         ### Comparison Across All Tasks ###
         ###################################
-        Mean Euclidean Distance between Actions: 0.90950465
+        Mean Euclidean Distance between Actions: 0.83827764
+        Std of Mean Euclidean Distance between Actions: 0.07118403
         Max Euclidean Distance between Actions: 2.828427
         Min Euclidean Distance between Actions: 0.0
 
-        Mean Cosine Similarity between Actions: 0.39543292
-        Max Cosine Similarity between Actions: 1.0000001
-        Min Cosine Similarity between Actions: -1.0000001
+        Mean Cosine Similarity between Actions: 0.38308399886003125
+        Std of Mean Cosine Similarity between Actions: 0.051240259689522595
+        Max Cosine Similarity between Actions: 1.000000238418579
+        Min Cosine Similarity between Actions: -1.0000001192092896
 
-    Scaling Factor: 4 (33x33=1089)
-        Greedy_00 success rate: 0.57
-        Greedy_00 average steps to reach goal first time: 6.508771929824562
-        Greedy_01 success rate: 0.6
-        Greedy_01 average steps to reach goal first time: 6.310344827586207
-        Greedy_05 success rate: 0.6
-        Greedy_05 average steps to reach goal first time: 9.017241379310345
-        Greedy_10 success rate: 0.62
-        Greedy_10 average steps to reach goal first time: 10.245901639344263
-        Random success rate: 0.13
-        Random average steps to reach goal first time: 23.0
-        Contrastive success rate: 0.69
-        Contrastive average steps to reach goal first time: 7.144927536231884
-        ##########################
-        Comparing Actions
-        ##########################
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7eff5f160f70> (leading) and <__main__.RandomAgent object at 0x7eff5f160fa0> (trailing) on 100 tasks with 100 max episode steps.
+        Comparing Actions of ContrastiveAgent (leading) and RandomAgent (trailing) on 500 tasks with 100 max episode steps.
         ###################################
         ### Comparison Across All Tasks ###
         ###################################
-        Mean Euclidean Distance between Actions: 1.2237433
+        Mean Euclidean Distance between Actions: 1.2493564
+        Std of Mean Euclidean Distance between Actions: 0.030379262
         Max Euclidean Distance between Actions: 2.828427
-        Min Euclidean Distance between Actions: 8.940697e-07
+        Min Euclidean Distance between Actions: 0.0
 
-        Mean Cosine Similarity between Actions: -0.004637177765555542
+        Mean Cosine Similarity between Actions: 0.0014817021151853817
+        Std of Mean Cosine Similarity between Actions: 0.0026786156459569234
         Max Cosine Similarity between Actions: 1.0000001192092896
         Min Cosine Similarity between Actions: -1.0000001192092896
 
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7eff5f160f70> (leading) and <__main__.ContrastiveAgent object at 0x7eff5f160f70> (trailing) on 100 tasks with 100 max episode steps.
+        Comparing Actions of ContrastiveAgent (leading) and ContrastiveAgent (trailing) on 500 tasks with 100 max episode steps.
         ###################################
         ### Comparison Across All Tasks ###
         ###################################
-        Mean Euclidean Distance between Actions: 9.3650704e-07
-        Max Euclidean Distance between Actions: 9.596355e-05
+        Mean Euclidean Distance between Actions: 1.0331364e-06
+        Std of Mean Euclidean Distance between Actions: 8.8689966e-08
+        Max Euclidean Distance between Actions: 0.00036140194
         Min Euclidean Distance between Actions: 0.0
 
         Mean Cosine Similarity between Actions: 1.0
+        Std of Mean Cosine Similarity between Actions: 0.0
         Max Cosine Similarity between Actions: 1.0000002
-        Min Cosine Similarity between Actions: 0.99998575
-
-        ##########################
-        Visualizing Actions of Greedy_00 Agent and Contrastive Agent
-        ##########################
-        Distances shape: (11, 11)
-        Number of cells in base environment image: 326700
-
-    Scaling Factor 3 (17x17=289)
-
-
-    Scaling Factor 2 (9x9=81)
-        Greedy_00 success rate: 0.56
-        Greedy_00 average steps to reach goal first time: 4.872727272727273
-        Greedy_01 success rate: 0.6
-        Greedy_01 average steps to reach goal first time: 5.824561403508772
-        Greedy_05 success rate: 0.61
-        Greedy_05 average steps to reach goal first time: 8.152542372881356
-        Greedy_10 success rate: 0.6
-        Greedy_10 average steps to reach goal first time: 8.76271186440678
-        Random success rate: 0.14
-        Random average steps to reach goal first time: 24.833333333333332
-        Contrastive success rate: 0.67
-        Contrastive average steps to reach goal first time: 6.850746268656716
-        ##########################
-        Comparing Actions
-        ##########################
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7fd660d30f40> (leading) and <__main__.RandomAgent object at 0x7fd660d30f70> (trailing) on 100 tasks with 100 max episode steps.
-        ###################################
-        ### Comparison Across All Tasks ###
-        ###################################
-        Mean Euclidean Distance between Actions: 1.2587274
-        Max Euclidean Distance between Actions: 2.828427
-        Min Euclidean Distance between Actions: 0.0
-
-        Mean Cosine Similarity between Actions: -0.0017395358945420916
-        Max Cosine Similarity between Actions: 1.0000001192092896
-        Min Cosine Similarity between Actions: -1.0000001192092896
-
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7fd660d30f40> (leading) and <__main__.ContrastiveAgent object at 0x7fd660d30f40> (trailing) on 100 tasks with 100 max episode steps.
-        ###################################
-        ### Comparison Across All Tasks ###
-        ###################################
-        Mean Euclidean Distance between Actions: 9.397061e-07
-        Max Euclidean Distance between Actions: 1.0402113e-05
-        Min Euclidean Distance between Actions: 0.0
-
-        Mean Cosine Similarity between Actions: 1.0
-        Max Cosine Similarity between Actions: 1.0000002
-        Min Cosine Similarity between Actions: 0.9999985
-
-        ##########################
-        Visualizing Actions of Greedy_00 Agent and Contrastive Agent
-        ##########################
-        Distances shape: (11, 11)
-        Number of cells in base environment image: 326700
-
-
-    Scaling Factor 1 (5x5=25)
-        Greedy_00 success rate: 0.58
-        Greedy_00 average steps to reach goal first time: 6.43859649122807
-        Greedy_01 success rate: 0.64
-        Greedy_01 average steps to reach goal first time: 7.524590163934426
-        Greedy_05 success rate: 0.65
-        Greedy_05 average steps to reach goal first time: 9.609375
-        Greedy_10 success rate: 0.56
-        Greedy_10 average steps to reach goal first time: 10.444444444444445
-        Random success rate: 0.1
-        Random average steps to reach goal first time: 38.142857142857146
-        Contrastive success rate: 0.67
-        Contrastive average steps to reach goal first time: 5.880597014925373
-        ##########################
-        Comparing Actions
-        ##########################
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7f37f533af10> (leading) and <__main__.RandomAgent object at 0x7f37f533af40> (trailing) on 100 tasks with 100 max episode steps.
-        ###################################
-        ### Comparison Across All Tasks ###
-        ###################################
-        Mean Euclidean Distance between Actions: 1.304517
-        Max Euclidean Distance between Actions: 2.828427
-        Min Euclidean Distance between Actions: 0.0
-
-        Mean Cosine Similarity between Actions: 0.0030229974198491974
-        Max Cosine Similarity between Actions: 1.0000001192092896
-        Min Cosine Similarity between Actions: -1.0000001192092896
-
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7f37f533af10> (leading) and <__main__.ContrastiveAgent object at 0x7f37f533af10> (trailing) on 100 tasks with 100 max episode steps.
-        ###################################
-        ### Comparison Across All Tasks ###
-        ###################################
-        Mean Euclidean Distance between Actions: 9.173586e-07
-        Max Euclidean Distance between Actions: 4.4614077e-05
-        Min Euclidean Distance between Actions: 0.0
-
-        Mean Cosine Similarity between Actions: 1.0
-        Max Cosine Similarity between Actions: 1.0000002
-        Min Cosine Similarity between Actions: 0.99999154
-
-        ##########################
-        Visualizing Actions of Greedy_00 Agent and Contrastive Agent
-        ##########################
-        Distances shape: (11, 11)
-        Number of cells in base environment image: 326700
-
-
-    Scaling Factor 0 (3x3=9)
-        Summary:
-        Greedy_00 success rate: 0.52
-        Greedy_00 average steps to reach goal first time: 4.686274509803922
-        Greedy_01 success rate: 0.52
-        Greedy_01 average steps to reach goal first time: 4.88
-        Greedy_05 success rate: 0.56
-        Greedy_05 average steps to reach goal first time: 6.109090909090909
-        Greedy_10 success rate: 0.55
-        Greedy_10 average steps to reach goal first time: 8.584905660377359
-        Random success rate: 0.09
-        Random average steps to reach goal first time: 4.875
-        Contrastive success rate: 0.67
-        Contrastive average steps to reach goal first time: 5.7611940298507465
-        ##########################
-        Comparing Actions
-        ##########################
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7f007142a130> (leading) and <__main__.RandomAgent object at 0x7f007142a160> (trailing) on 100 tasks with 100 max episode steps.
-        ###################################
-        ### Comparison Across All Tasks ###
-        ###################################
-        Mean Euclidean Distance between Actions: 1.4064063253038723
-        Max Euclidean Distance between Actions: 2.8284271247461903
-        Min Euclidean Distance between Actions: 0.0
-
-        Mean Cosine Similarity between Actions: 0.007324839335468681
-        Max Cosine Similarity between Actions: 1.00000004263042
-        Min Cosine Similarity between Actions: -1.0000000366900599
-
-        Comparing Actions of <__main__.ContrastiveAgent object at 0x7f007142a130> (leading) and <__main__.ContrastiveAgent object at 0x7f007142a130> (trailing) on 100 tasks with 100 max episode steps.
-        ###################################
-        ### Comparison Across All Tasks ###
-        ###################################
-        Mean Euclidean Distance between Actions: 8.7007487e-07
-        Max Euclidean Distance between Actions: 5.22235e-05
-        Min Euclidean Distance between Actions: 0.0
-
-        Mean Cosine Similarity between Actions: 1.0
-        Max Cosine Similarity between Actions: 1.0000002
-        Min Cosine Similarity between Actions: 0.99999774
-
-        ##########################
-        Visualizing Actions of Greedy_00 Agent and Contrastive Agent
-        ##########################
-        Distances shape: (11, 11)
-        Number of cells in base environment image: 326700
+        Min Cosine Similarity between Actions: 0.99996716
     """

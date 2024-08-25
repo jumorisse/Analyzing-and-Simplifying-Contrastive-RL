@@ -59,7 +59,8 @@ def apply_policy_and_sample(
         [[ 0., -1.], [ 0., 0.], [ 0., 1.]],
         [[ 1., -1.], [ 1., 0.], [ 1., 1.]],
         ])
-      '''
+
+      
       # 5x5 grid of actions
       action_grid = jnp.array([
         [[-1., -1.], [-1., -0.5], [-1., 0.], [-1., 0.5], [-1., 1.]],
@@ -68,9 +69,9 @@ def apply_policy_and_sample(
         [[ 0.5, -1.], [ 0.5, -0.5], [0.5, 0.], [0.5, 0.5], [0.5, 1.]],
         [[ 1., -1.], [ 1., -0.5], [1., 0.], [1., 0.5], [1., 1.]],
         ])
-      
-      # 9x9 grid of actions
       '''
+      # 9x9 grid of actions
+      
       action_grid = jnp.array([
         [[-1., -1.], [-1., -0.75], [-1., -0.5], [-1., -0.25], [-1., 0.], [-1., 0.25], [-1., 0.5], [-1., 0.75], [-1., 1.]],
         [[-0.75, -1.], [-0.75, -0.75], [-0.75, -0.5], [-0.75, -0.25], [-0.75, 0.], [-0.75, 0.25], [-0.75, 0.5], [-0.75, 0.75], [-0.75, 1.]],
@@ -82,7 +83,7 @@ def apply_policy_and_sample(
         [[ 0.75, -1.], [ 0.75, -0.75], [ 0.75, -0.5], [ 0.75, -0.25], [ 0.75, 0.], [ 0.75, 0.25], [ 0.75, 0.5], [ 0.75, 0.75], [ 0.75, 1.]],
         [[ 1., -1.], [ 1., -0.75], [ 1., -0.5], [ 1., -0.25], [ 1., 0.], [ 1., 0.25], [ 1., 0.5], [ 1., 0.75], [ 1., 1.]],
         ])
-      '''
+      
       
       # apply the critic network to each action in the action grid to get the value of each action
       value_grid = jnp.apply_along_axis(lambda action: jax.nn.sigmoid(networks.q_network.apply(params, obs, action.reshape(1,-1))), 2, action_grid).reshape(action_grid.shape[0], action_grid.shape[1])
@@ -161,6 +162,7 @@ def make_networks(
           activation=jax.nn.relu,
           name='g_encoder')
       g_repr = g_encoder(goal) # called to trace the function?
+      
     # Experimental versions of the g_encoder, where the goal is encoded using the state-action encoder
     elif only_sa_encoder:
       if not sample_action:

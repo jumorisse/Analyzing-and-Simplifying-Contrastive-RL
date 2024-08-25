@@ -137,14 +137,14 @@ def main(_):
   #env_name = 'sawyer_window'
   env_name = 'point_Spiral11x11'
   params = {
-      'seed': 0,
+      'seed': 0, #original value: 0, additional seeds: 21, 42, 97, 1453
       'use_random_actor': True,
       'entropy_coefficient': None if 'image' in env_name else 0.0,
       'env_name': env_name,
       # For online RL experiments, max_number_of_steps is the number of
       # environment steps. For offline RL experiments, this is the number of
       # gradient steps.
-      'max_number_of_steps': 1_000_000,
+      'max_number_of_steps': 550_000,
       'use_image_obs': 'image' in env_name,
       'only_sa_encoder': True,
       'actor': 'parameterized', # 'parameterized', 'greedy', or 'random'

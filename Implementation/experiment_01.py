@@ -37,7 +37,7 @@ def plot_dist_grid(dist_grid, save_path):
     plt.savefig(save_path)
     plt.close()
 
-def neighborhood_investigation(start_state, neighbor_states, sa_encoders, g_encoders, save_dir):
+def neighborhood_investigation(start_state, neighbor_states, sa_encoders, g_encoders, save_dir, action_grid_scale=2):
     """
     Investigates the relations between goal and state-action representations in a small local neighborhood.
     Considers actions from an action grid. Computes distances between state-action representations and goal representations.
@@ -69,7 +69,7 @@ def neighborhood_investigation(start_state, neighbor_states, sa_encoders, g_enco
     print("Neighbor colors:", neighborhood_colors)
     visualize_states(env, [start_state]+neighbor_states, color_meaning="ids", save_path=save_dir+"neighborhood_0_spiral11x11.png", state_colors=[start_color]+neighborhood_colors, radius=8)
     # get action grid
-    action_grid = scale_action_grid(basic_action_grid,2)
+    action_grid = scale_action_grid(basic_action_grid,action_grid_scale)
     action_grid_rows = action_grid.shape[0]
     action_grid_cols = action_grid.shape[1]
 
@@ -217,13 +217,13 @@ def state_vs_goal_investigation(states, sa_encoders, g_encoders, save_dir, goals
                 steps = steps_to_center
                 steps_to_goal.append(steps)
             elif g == "entrance":
-                goal = [11.5,11.5]
+                goal = [10.5,10.5]
                 goal_encodings.append(get_g_encodings(g_encoder, [goal])[0])
                 # if entrance is goal, steps are reversed steps to center
                 steps = steps_to_center[::-1]
                 steps_to_goal.append(steps)
             elif g == "middle":
-                goal = [10.5,2.5]
+                goal = [9.5,1.5]
                 goal_encodings.append(get_g_encodings(g_encoder, [goal])[0])
                 # extract number of steps from middle to center, i.e. the value of the middle point of steps_to_center
                 max_steps = steps_to_center[len(steps_to_center)//2]
@@ -279,7 +279,11 @@ if __name__ == "__main__":
     # parameter used during training (used to construct paths for loading encoder parameter)
     environment_name = "point_Spiral11x11"
     encoder_nr = "two_encoders" # "only_sa" or "two_encoders"
-    actor = "original" # "original", "greedy_randominit_9actions"
+    actor = "original" # "original", "greedy_randominit_25actions"
+    if actor == "greedy_randominit_25actions":
+        action_grid_scale = 1
+    else:
+        action_grid_scale = 2
     if sample_actions_for_all_states:
         subdir = "with_sampled_actions"
     else:
@@ -356,7 +360,7 @@ if __name__ == "__main__":
         sampled_actions = np.array([np.random.uniform(-1, 1, (n_actions, 2)) for _ in range(n_states)])
         action_colors = []
         for i in range(n_states):
-            state_action_colors, _, _ = get_action_colors(sampled_actions[i])
+            state_action_colors, _, _ = get_action_colors(sampled_actions[i], state_color=state_colors[i], color=True)
             action_colors += state_action_colors
         sa_encodings_samples = get_sa_encodings(sa_encoder, states, sampled_actions)
         sa_encodings_fixed = get_sa_encodings(sa_encoder, states, [np.array([0,0])])
@@ -428,7 +432,7 @@ if __name__ == "__main__":
     print("\n####################################")
     print("##### Critic Value Investigation (when varying action for neighbor goals) #######")
     print("####################################")
-    neighborhood_investigation(s_0, [s_1, s_2], sa_encoders, g_encoders, save_dir)
+    neighborhood_investigation(s_0, [s_1, s_2], sa_encoders, g_encoders, save_dir, action_grid_scale=action_grid_scale)
 
     print("\n####################################")
     print("##### Critic Value Investigation (when varying states-[0,0] for fixed goal) #######")

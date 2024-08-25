@@ -71,8 +71,8 @@ def get_program(params):
 
   # if actor set in params is 'greedy', prepare everything needed for greedy action selection
   if params['actor'] == 'greedy':
-    params['action_grid'] = greedy_utils.get_action_grid(scale_factor=1) # scale factor 0 for 3x3 grid, 1 for 5x5 grid, 2 for 9x9 grid
-    params['random_prob'] = 0.05 # exploration probability, for experiment 02 I use 0.05 and for experiment 3 use 0.0, 0.01, 0.05, and 0.1
+    params['action_grid'] = greedy_utils.get_action_grid(scale_factor=2) # scale factor 0 for 3x3 grid, 1 for 5x5 grid, 2 for 9x9 grid
+    params['random_prob'] = 0.05 # exploration probability
 
   if env_name.startswith('offline_ant'):
     # No actors needed for the offline RL experiments. Evaluation is
@@ -141,9 +141,9 @@ def main(_):
       # For online RL experiments, max_number_of_steps is the number of
       # environment steps. For offline RL experiments, this is the number of
       # gradient steps.
-      'max_number_of_steps': 550_000,
+      'max_number_of_steps': 22_000,
       'use_image_obs': 'image' in env_name,
-      'actor': 'random', # 'parameterized', 'greedy', or 'random'
+      'actor': 'greedy', # 'parameterized', 'greedy', or 'random'
   }
   if 'ant_' in env_name:
     params['end_index'] = 2

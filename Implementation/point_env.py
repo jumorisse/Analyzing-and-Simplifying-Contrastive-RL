@@ -340,6 +340,7 @@ class PointEnv(gym.Env):
       state (np.ndarray): The agent's location.
       action (np.ndarray): The action to draw.
       color (np.array): The RGB color to use for the action.
+      scale (int): Factor by which original walls ndarray is scaled up.
     
     Returns:
       np.ndarray: The environment image with the action drawn.
