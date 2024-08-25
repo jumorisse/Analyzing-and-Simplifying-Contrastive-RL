@@ -1,12 +1,13 @@
 # Implementation
 
-Based on [Eysenbach et al. (2023)](https://github.com/google-research/google-research/tree/master/contrastive_rl)
-
-This directory contains the code used to run the experiments for my Master thesis. My implementation is based on the work by Eysenbach et al. (2023), and therefore, this codebase largely consists of their code, available at [their GitHub repository](https://github.com/google-research/google-research/tree/master/contrastive_rl). Below, I list the files I developed and the ones I modified, along with instructions on how to reproduce my results.
+This directory contains the code used to run the experiments for my Master thesis.
+My implementation is based on the that by [Eysenbach et al. (2023)](https://github.com/google-research/google-research/tree/master/contrastive_rl).
+Therefore, this codebase largely consists of their code.
+Below, I list the files I developed and the ones I modified, along with instructions on how to reproduce my results.
 
 ## Files Developed
 
-These are the files I wrote myself:
+These are the files I added to the original CRL implementation:
 
 - **`experiment_01.py`**: Runs my first experiment, producing visualizations of CRL's representation space and critic function.
 - **`experiment_02.py`**: Runs my second experiment, comparing greedy action selection to that of the parameterized actor.
