@@ -14,4 +14,6 @@ Our results provide insights into CRL's workings and suggest that it can be furt
 
 ![Training Progress of Our greedy CRL compared to that of the original CRL by Eysenbach et al. (2023)](performance_overview.png)
 
+## Implementation & Reproduction
+For the implementation of our results and instructions for reproduction, see the README in the Implementation/ subdirectory.
 ---
